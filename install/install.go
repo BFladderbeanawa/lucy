@@ -175,42 +175,73 @@ func ensureServerPlatformMatch(id types.PackageId) error {
 
 		requiredCapability := probe.CapabilityForPlatform(platform)
 		if requiredCapability == "" {
-			return fmt.Errorf("unsupported platform: %s", platform)
+			return nil
 		}
 
-		result := probe.EvaluateCompatibility(serverInfo.Executable.Topology, requiredCapability)
+		topology := serverInfo.Executable.Topology
+		result := probe.EvaluateCompatibility(topology, requiredCapability)
 		switch result.Verdict {
 		case types.CompatCompatible:
 			return nil
 		case types.CompatDegraded:
-			logger.Warn(
-				fmt.Errorf(
-					"compatibility warning: %s (reason: %s)",
-					result.Detail,
-					result.Reason,
-				),
+			if result.RiskLevel < types.RiskHigh {
+				logger.ShowWarn(
+					fmt.Errorf(
+						"compatibility degraded for %s: %s (reason: %s, risk_level: %d)",
+						platform,
+						result.Detail,
+						result.Reason,
+						result.RiskLevel,
+					),
+				)
+				return nil
+			}
+
+			return fmt.Errorf(
+				"%s server not found (reason: %s, verdict: %s, risk_level: %d)",
+				platform.Title(),
+				result.Reason,
+				result.Verdict,
+				result.RiskLevel,
 			)
-			return nil
 		case types.CompatUnresolved:
 			serverPlatform := serverInfo.Executable.ModLoader
 			logger.Warn(
-				fmt.Errorf(
-					"topology unresolved, falling back to platform check (reason: %s)",
-					result.Reason,
-				),
+				fmt.Errorf("topology unresolved for %s, falling back to legacy compatibility check", id.Platform),
 			)
-			if serverPlatform != platform {
-				return fmt.Errorf(
-					"%s server not found (reason: %s, fallback: modloader_mismatch)",
-					platform.Title(),
-					result.Reason,
-				)
+
+			switch platform {
+			case types.PlatformForge:
+				if serverPlatform != types.PlatformForge {
+					return errors.New("forge server not found")
+				}
+			case types.PlatformFabric:
+				if serverPlatform != types.PlatformFabric {
+					return errors.New("fabric server not found")
+				}
+			case types.PlatformNeoforge:
+				if serverPlatform != types.PlatformNeoforge {
+					return errors.New("neoforge server not found")
+				}
 			}
+
 			return nil
 		case types.CompatIncompatible:
-			return fmt.Errorf("%s server not found (reason: %s)", platform.Title(), result.Reason)
+			return fmt.Errorf(
+				"%s server not found (reason: %s, verdict: %s, risk_level: %d)",
+				platform.Title(),
+				result.Reason,
+				result.Verdict,
+				result.RiskLevel,
+			)
 		default:
-			return fmt.Errorf("%s server not found (reason: %s)", platform.Title(), result.Reason)
+			return fmt.Errorf(
+				"%s server not found (reason: %s, verdict: %s, risk_level: %d)",
+				platform.Title(),
+				result.Reason,
+				result.Verdict,
+				result.RiskLevel,
+			)
 		}
 	}
 }
