@@ -11,6 +11,7 @@ package probe
 
 import (
 	"errors"
+	"fmt"
 	"path"
 	"sort"
 	"sync"
@@ -205,6 +206,7 @@ func buildModPaths() (paths []string) {
 		}
 	} else {
 		// Legacy fallback
+		logger.Warn(fmt.Errorf("mod-path: topology unresolved, falling back to legacy ModLoader check"))
 		if exec.ModLoader == types.PlatformFabric ||
 			exec.ModLoader == types.PlatformForge ||
 			exec.ModLoader == types.PlatformNeoforge {
