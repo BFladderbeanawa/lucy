@@ -55,6 +55,21 @@ type CompatResult struct {
 	RiskLevel RuntimeRiskLevel
 }
 
+// CompatPolicy describes the compatibility relationship between a server runtime
+// and package ecosystem. All edges are directed: "can runtime A host packages for ecosystem B?"
+type CompatPolicy struct {
+	// HostNodeID is the runtime that hosts/runs the packages.
+	HostNodeID RuntimeNodeID
+	// PackageEcosystem is the capability (ecosystem) the packages belong to.
+	PackageEcosystem RuntimeCapability
+	// Verdict is the base verdict for this relationship (without bridge layers).
+	Verdict CompatVerdict
+	// Risk is the risk level for this combination.
+	Risk RuntimeRiskLevel
+	// Reason is a machine-readable code for why this verdict was reached.
+	Reason string
+}
+
 type RuntimeNode struct {
 	ID               RuntimeNodeID
 	Role             RuntimeRole
@@ -133,4 +148,71 @@ func (t *RuntimeTopology) PrimaryNodeData() (RuntimeNode, bool) {
 	}
 
 	return t.FindNode(t.PrimaryNode)
+}
+
+// EdgesFrom returns all edges originating from a given node.
+func (t *RuntimeTopology) EdgesFrom(id RuntimeNodeID) []RuntimeEdge {
+	if t == nil {
+		return []RuntimeEdge{}
+	}
+
+	edges := make([]RuntimeEdge, 0)
+	for _, edge := range t.Edges {
+		if edge.From == id {
+			edges = append(edges, edge)
+		}
+	}
+
+	return edges
+}
+
+// EdgesTo returns all edges pointing to a given node.
+func (t *RuntimeTopology) EdgesTo(id RuntimeNodeID) []RuntimeEdge {
+	if t == nil {
+		return []RuntimeEdge{}
+	}
+
+	edges := make([]RuntimeEdge, 0)
+	for _, edge := range t.Edges {
+		if edge.To == id {
+			edges = append(edges, edge)
+		}
+	}
+
+	return edges
+}
+
+// NodesWithCapability returns all nodes that have the given capability.
+func (t *RuntimeTopology) NodesWithCapability(c RuntimeCapability) []RuntimeNode {
+	if t == nil {
+		return []RuntimeNode{}
+	}
+
+	nodes := make([]RuntimeNode, 0)
+	for _, node := range t.Nodes {
+		if node.HasCapability(c) {
+			nodes = append(nodes, node)
+		}
+	}
+
+	return nodes
+}
+
+// PrimaryCapabilities returns the capabilities of the primary node only.
+// Returns nil if topology is unresolved.
+func (t *RuntimeTopology) PrimaryCapabilities() []RuntimeCapability {
+	if t == nil {
+		return []RuntimeCapability{}
+	}
+
+	if !t.Resolved() {
+		return nil
+	}
+
+	primaryNode, ok := t.PrimaryNodeData()
+	if !ok {
+		return nil
+	}
+
+	return append([]RuntimeCapability(nil), primaryNode.Capabilities...)
 }
