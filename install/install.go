@@ -213,15 +213,15 @@ func ensureServerPlatformMatch(id types.PackageId) error {
 			switch platform {
 			case types.PlatformForge:
 				if serverPlatform != types.PlatformForge {
-					return errors.New("forge server not found")
+					return fmt.Errorf("forge server not found (topology unresolved)")
 				}
 			case types.PlatformFabric:
 				if serverPlatform != types.PlatformFabric {
-					return errors.New("fabric server not found")
+					return fmt.Errorf("fabric server not found (topology unresolved)")
 				}
 			case types.PlatformNeoforge:
 				if serverPlatform != types.PlatformNeoforge {
-					return errors.New("neoforge server not found")
+					return fmt.Errorf("neoforge server not found (topology unresolved)")
 				}
 			}
 

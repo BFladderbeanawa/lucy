@@ -154,6 +154,8 @@ func generateStatusOutput(
 			data.Executable.Topology.HasCapability(types.CapabilityForgeMods) ||
 			data.Executable.Topology.HasCapability(types.CapabilityNeoforgeMods)
 	} else {
+		// Display path: unresolved topology falls back to mod-loader identity to
+		// avoid noisy status warnings while keeping output deterministic.
 		showMods = data.Executable.ModLoader.IsModding()
 	}
 

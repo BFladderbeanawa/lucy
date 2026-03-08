@@ -19,6 +19,8 @@ func ResolveProvidersByTopology(
 	src types.Source,
 ) ([]upstream.Provider, error) {
 	if topology == nil || !topology.Resolved() {
+		// topology is nil or unresolved - fall back to legacy platform routing.
+		// Callers that need a warning should check topology resolution before calling.
 		return ResolveProviders(platform, src)
 	}
 
