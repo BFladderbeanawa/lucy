@@ -26,6 +26,7 @@ var subcmdAdd = &cli.Command{
 		},
 		flagNoStyle,
 	},
+	ArgsUsage: "<package-identifier>",
 	Action: tools.Decorate(
 		actionAdd,
 		decoratorGlobalFlags,
