@@ -174,6 +174,7 @@ func buildServerInfo() types.ServerInfo {
 	}()
 
 	wg.Wait()
+	EnrichTopologyFromPackages(serverInfo.Executable, serverInfo.Packages)
 	return serverInfo
 }
 
