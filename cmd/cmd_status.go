@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/mclucy/lucy/logger"
 	"github.com/mclucy/lucy/probe"
 	"github.com/mclucy/lucy/tools"
 	"github.com/mclucy/lucy/tui"
@@ -156,6 +157,7 @@ func generateStatusOutput(
 	} else {
 		// Display path: unresolved topology falls back to mod-loader identity to
 		// avoid noisy status warnings while keeping output deterministic.
+		logger.Warn(fmt.Errorf("status-display: topology unresolved, falling back to ModLoader identity for mod visibility"))
 		showMods = data.Executable.ModLoader.IsModding()
 	}
 
