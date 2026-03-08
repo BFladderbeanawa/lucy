@@ -40,7 +40,7 @@ func Install(id types.PackageId, source types.Source) error {
 	serverPlatform := serverInfo.Executable.DerivedModLoader()
 	hasMcdr := serverInfo.Environments.Mcdr != nil
 
-	providers, err := routing.ResolveProviders(serverPlatform, source)
+	providers, err := routing.ResolveProvidersByTopology(serverInfo.Executable.Topology, serverPlatform, source)
 	if err != nil {
 		return err
 	}
