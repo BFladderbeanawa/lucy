@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/mclucy/lucy/logger"
 	"github.com/mclucy/lucy/types"
 	"github.com/mclucy/lucy/upstream"
 	"github.com/mclucy/lucy/upstream/curseforge"
@@ -98,6 +99,7 @@ func ResolveProvidersFromTopology(
 	}
 
 	if topology == nil || !topology.Resolved() {
+		logger.Warn(fmt.Errorf("routing: topology unresolved, falling back to auto providers"))
 		return ResolveProviders(types.PlatformAny, src)
 	}
 
