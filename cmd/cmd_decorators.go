@@ -58,21 +58,11 @@ func decoratorHelpAndExitOnNoArg(f cli.ActionFunc) cli.ActionFunc {
 	}
 }
 
-// hasAnyFlagSet returns true if any flag for this command has a non-zero value.
-// It attempts to infer whether a flag was set by checking common flag types
-// (bool, string, int) via their zero values.
+// hasAnyFlagSet returns true if any flag for this command was explicitly set.
+// It relies on the CLI library's IsSet API instead of inferring from zero values.
 func hasAnyFlagSet(cmd *cli.Command) bool {
 	for _, name := range cmd.FlagNames() {
-		// bool flags: default is typically false; true implies set
-		if cmd.Bool(name) {
-			return true
-		}
-		// string flags: non-empty implies set
-		if cmd.String(name) != "" {
-			return true
-		}
-		// int flags: non-zero implies set
-		if cmd.Int(name) != 0 {
+		if cmd.IsSet(name) {
 			return true
 		}
 	}
