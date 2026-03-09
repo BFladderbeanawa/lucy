@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/mclucy/lucy/tools"
 
@@ -18,7 +19,7 @@ func decoratorBaseCommandFlags(f cli.ActionFunc) cli.ActionFunc {
 			tools.TurnOffStyles()
 		}
 		if cmd.Bool(flagLogFileName) {
-			println("Log file at", logger.GetLogFile().Name())
+			fmt.Println("Log file at", logger.GetLogFile().Name())
 		}
 		return f(ctx, cmd)
 	}
