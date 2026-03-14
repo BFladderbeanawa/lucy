@@ -14,7 +14,7 @@ import (
 var UnknownExecutable = &types.ExecutableInfo{
 	Path:                   "",
 	GameVersion:            types.VersionUnknown,
-	PrimaryPlatform:        types.UnknownPlatform,
+	PrimaryPlatform:        types.PlatformUnknown,
 	PrimaryPlatformVersion: types.VersionUnknown,
 	BootCommand:            nil,
 	Topology:               &types.RuntimeTopology{},
