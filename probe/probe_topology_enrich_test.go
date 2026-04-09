@@ -116,3 +116,113 @@ func TestMergeTopology_NilSafe(t *testing.T) {
 	mergeTopology(nil, dst)
 	// no panic
 }
+
+func TestEnrichTopologyFromPackages_NilExec(t *testing.T) {
+	// Should not panic
+	EnrichTopologyFromPackages(nil, nil)
+}
+
+func TestEnrichTopologyFromPackages_NoTopologyNoEvidence(t *testing.T) {
+	exec := &types.ExecutableInfo{}
+	EnrichTopologyFromPackages(exec, nil)
+	if exec.Topology == nil {
+		t.Error("expected empty topology to be set, got nil")
+	}
+}
+
+func TestEnrichTopologyFromPackages_NoTopologyWithConnectorEvidence(t *testing.T) {
+	exec := &types.ExecutableInfo{}
+	pkgs := []types.Package{
+		makePackage(t, types.PlatformFabric, "sinytra-connector", "1.0.0", ""),
+	}
+	EnrichTopologyFromPackages(exec, pkgs)
+	if exec.Topology == nil {
+		t.Fatal("expected topology to be built from evidence")
+	}
+	// Connector topology should include connector and forge nodes
+	_, hasConnector := exec.Topology.FindNode(RuntimeNodeConnector)
+	if !hasConnector {
+		t.Error("expected connector node in topology")
+	}
+	_, hasForge := exec.Topology.FindNode(RuntimeNodeForge)
+	if !hasForge {
+		t.Error("expected forge node in topology (via connector policy edge)")
+	}
+}
+
+func TestEnrichTopologyFromPackages_NoTopologyWithKiltEvidence(t *testing.T) {
+	exec := &types.ExecutableInfo{}
+	pkgs := []types.Package{
+		makePackage(t, types.PlatformFabric, "kilt", "1.0.0", ""),
+	}
+	EnrichTopologyFromPackages(exec, pkgs)
+	if exec.Topology == nil {
+		t.Fatal("expected topology to be built")
+	}
+	_, hasKilt := exec.Topology.FindNode(RuntimeNodeKilt)
+	if !hasKilt {
+		t.Error("expected kilt node in topology")
+	}
+}
+
+func TestEnrichTopologyFromPackages_ExistingTopologyEnriched(t *testing.T) {
+	// Start with a fabric topology, enrich with geyser evidence
+	fabricEntry, _ := DefaultRegistry.FindEntry(RuntimeNodeFabric)
+	exec := &types.ExecutableInfo{
+		Topology: BuildTopologyFromEntry(fabricEntry),
+	}
+	pkgs := []types.Package{
+		makePackage(t, types.PlatformFabric, "geyser-fabric", "2.0.0", ""),
+	}
+	EnrichTopologyFromPackages(exec, pkgs)
+	_, hasGeyser := exec.Topology.FindNode(RuntimeNodeGeyser)
+	if !hasGeyser {
+		t.Error("expected geyser node to be merged into existing topology")
+	}
+}
+
+func TestEnrichTopologyFromPackages_BridgeHintsProcessed(t *testing.T) {
+	fabricEntry, _ := DefaultRegistry.FindEntry(RuntimeNodeFabric)
+	exec := &types.ExecutableInfo{
+		Topology:    BuildTopologyFromEntry(fabricEntry),
+		BridgeHints: []string{string(RuntimeNodeConnector)},
+	}
+	EnrichTopologyFromPackages(exec, nil)
+	_, hasConnector := exec.Topology.FindNode(RuntimeNodeConnector)
+	if !hasConnector {
+		t.Error("expected connector node from BridgeHints")
+	}
+}
+
+func TestEnrichTopologyFromPackages_CaseInsensitiveNameMatching(t *testing.T) {
+	exec := &types.ExecutableInfo{}
+	pkgs := []types.Package{
+		makePackage(t, types.PlatformFabric, "Velocity", "3.0.0", ""),
+	}
+	EnrichTopologyFromPackages(exec, pkgs)
+	if exec.Topology == nil {
+		t.Fatal("expected topology")
+	}
+	_, hasVelocity := exec.Topology.FindNode(RuntimeNodeVelocity)
+	if !hasVelocity {
+		t.Error("expected velocity node (case-insensitive name match)")
+	}
+}
+
+func TestEnrichTopologyFromPackages_TopologyNormalizedAfterEnrich(t *testing.T) {
+	// Add duplicate evidence to verify NormalizeTopology is called
+	exec := &types.ExecutableInfo{}
+	pkgs := []types.Package{
+		makePackage(t, types.PlatformFabric, "sinytra-connector", "1.0.0", ""),
+		makePackage(t, types.PlatformFabric, "kilt", "1.0.0", ""),
+	}
+	EnrichTopologyFromPackages(exec, pkgs)
+	// Verify no duplicate nodes
+	seen := map[types.RuntimeNodeID]int{}
+	for _, n := range exec.Topology.Nodes {
+		seen[n.ID]++
+		if seen[n.ID] > 1 {
+			t.Errorf("duplicate node %q after enrich", n.ID)
+		}
+	}
+}
