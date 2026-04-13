@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"slices"
 
 	"github.com/mclucy/lucy/logger"
@@ -33,23 +32,19 @@ var subcmdInfo = &cli.Command{
 		decoratorLogAndExitOnError,
 	),
 	ShellComplete: func(_ context.Context, cmd *cli.Command) {
-		if CompleteFlagNamesIfRequested(cmd) {
+		request := ParseCompletionRequest(cmd)
+		if CompleteFlagValueIfRequested(request, map[string][]CompletionCandidate{
+			flagSourceName: StaticSourceCandidates(),
+		}) {
 			return
 		}
 
-		osArgs := os.Args
-		if n := len(osArgs); n >= 2 {
-			prevArg := osArgs[n-2]
-			if prevArg == "--"+flagSourceName || prevArg == "-s" {
-				PrintCandidates(StaticSourceCandidates())
-				return
-			}
+		if request.CompletingFlagName {
+			CompleteFlagNames(cmd, request.Current)
+			return
 		}
-		token := ""
-		if cmd.NArg() > 0 {
-			token = cmd.Args().First()
-		}
-		CompletePackageIDSuggestions(context.Background(), cmd, token)
+
+		CompletePackageIDSuggestions(context.Background(), cmd, request.Current)
 	},
 }
 

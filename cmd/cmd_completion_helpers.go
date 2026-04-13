@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/mclucy/lucy/types"
@@ -15,14 +16,24 @@ type CompletionCandidate struct {
 	Description string
 }
 
-// PrintCandidates outputs candidates to stdout in urfave/cli v3 "value:description" format.
+type CompletionRequest struct {
+	Current            string
+	Previous           string
+	CompletingFlagName bool
+	FlagValueName      string
+	FlagValuePrefix    string
+}
+
+const shellCompletionTrigger = "--generate-shell-completion"
+
+// PrintCandidates outputs plain completion values, one per line.
+//
+// urfave/cli's generated shell scripts do not expose a reliable shell identifier
+// to custom ShellComplete handlers. Descriptions are therefore omitted here to
+// keep completion output portable across bash, zsh, fish, and pwsh.
 func PrintCandidates(candidates []CompletionCandidate) {
 	for _, c := range candidates {
-		if c.Description != "" {
-			fmt.Printf("%s:%s\n", c.Value, c.Description)
-		} else {
-			fmt.Println(c.Value)
-		}
+		fmt.Println(c.Value)
 	}
 }
 
@@ -101,28 +112,76 @@ func ParseCompletionToken(token string) (platform, name, version, segment string
 	return
 }
 
-func currentCompletionToken() string {
-	for i := len(os.Args) - 1; i >= 0; i-- {
-		if os.Args[i] != "--generate-shell-completion" {
-			return os.Args[i]
-		}
+func ParseCompletionRequest(cmd *cli.Command) CompletionRequest {
+	args := completionInvocationArgs(cmd)
+	for len(args) > 0 && args[len(args)-1] == shellCompletionTrigger {
+		args = args[:len(args)-1]
 	}
-	return ""
+
+	request := CompletionRequest{}
+	if len(args) > 0 {
+		request.Current = args[len(args)-1]
+	}
+	if len(args) > 1 {
+		request.Previous = args[len(args)-2]
+	}
+
+	if flag, ok := flagByToken(cmd, request.Current); ok && flagTakesValue(flag) {
+		request.FlagValueName = primaryFlagName(flag)
+		return request
+	}
+
+	if strings.HasPrefix(request.Current, "-") {
+		request.CompletingFlagName = true
+		return request
+	}
+
+	if flag, ok := flagByToken(cmd, request.Previous); ok && flagTakesValue(flag) {
+		request.FlagValueName = primaryFlagName(flag)
+		request.FlagValuePrefix = request.Current
+	}
+
+	return request
 }
 
-func CompleteFlagNamesIfRequested(cmd *cli.Command) bool {
-	token := currentCompletionToken()
-	if !strings.HasPrefix(token, "-") {
+func completionInvocationArgs(cmd *cli.Command) []string {
+	args := os.Args[1:]
+	if cmd == nil {
+		return slices.Clone(args)
+	}
+
+	for i, arg := range args {
+		if arg == cmd.Name {
+			return slices.Clone(args[i+1:])
+		}
+	}
+
+	return slices.Clone(args)
+}
+
+func CompleteFlagNames(cmd *cli.Command, prefix string) {
+	PrintCandidates(FilterByPrefix(flagCompletionCandidates(cmd), prefix))
+}
+
+func CompleteFlagValueIfRequested(
+	request CompletionRequest,
+	candidatesByFlag map[string][]CompletionCandidate,
+) bool {
+	if request.FlagValueName == "" {
 		return false
 	}
 
-	PrintCandidates(FilterByPrefix(flagCompletionCandidates(cmd), token))
+	candidates, ok := candidatesByFlag[request.FlagValueName]
+	if !ok {
+		return false
+	}
+
+	PrintCandidates(FilterByPrefix(candidates, request.FlagValuePrefix))
 	return true
 }
 
 func flagCompletionCandidates(cmd *cli.Command) []CompletionCandidate {
-	flags := append([]cli.Flag{}, cmd.VisibleFlags()...)
-	flags = append(flags, cmd.VisiblePersistentFlags()...)
+	flags := completionFlags(cmd)
 
 	seen := make(map[string]struct{})
 	out := make([]CompletionCandidate, 0, len(flags)*2)
@@ -153,4 +212,40 @@ func flagCompletionCandidates(cmd *cli.Command) []CompletionCandidate {
 	}
 
 	return out
+}
+
+func completionFlags(cmd *cli.Command) []cli.Flag {
+	flags := append([]cli.Flag{}, cmd.VisibleFlags()...)
+	flags = append(flags, cmd.VisiblePersistentFlags()...)
+	return flags
+}
+
+func flagByToken(cmd *cli.Command, token string) (cli.Flag, bool) {
+	if !strings.HasPrefix(token, "-") {
+		return nil, false
+	}
+
+	name := strings.TrimLeft(token, "-")
+	for _, flag := range completionFlags(cmd) {
+		for _, candidate := range flag.Names() {
+			if candidate == name {
+				return flag, true
+			}
+		}
+	}
+
+	return nil, false
+}
+
+func primaryFlagName(flag cli.Flag) string {
+	names := flag.Names()
+	if len(names) == 0 {
+		return ""
+	}
+	return names[0]
+}
+
+func flagTakesValue(flag cli.Flag) bool {
+	docFlag, ok := flag.(cli.DocGenerationFlag)
+	return ok && docFlag.TakesValue()
 }
