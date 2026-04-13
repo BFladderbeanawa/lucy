@@ -84,40 +84,56 @@ func InstallMany(ids []types.PackageId, source types.Source) error {
 		}
 	}
 
-	tx := NewRecursiveTransaction(regularIds, providers)
-	SnapshotInstalledConstraints(tx)
+	roots := append([]types.PackageId(nil), regularIds...)
+	excluded := map[string]struct{}{}
+	var tx *RecursiveTransaction
 
-	showRecursiveResolveStart(regularIds)
-	tx, err = BuildCandidateGraph(regularIds, providers, tx.InstalledConstraints)
-	if err != nil {
-		showRecursiveConflict(err)
-		return err
-	}
+	for {
+		tx = NewRecursiveTransaction(roots, providers)
+		SnapshotInstalledConstraints(tx)
 
-	packages := recursiveCandidatePackages(tx)
-	showRecursiveDownloadStart(len(packages))
-	packages, err = downloadBatchPackages(serverInfo.WorkPath, packages)
-	if err != nil {
-		return err
-	}
-	backfillRecursiveDownloads(tx, packages)
-	tx.AdvanceTo(PhaseDownloaded)
+		showRecursiveResolveStart(roots)
+		tx, err = BuildCandidateGraph(roots, providers, tx.InstalledConstraints)
+		if err != nil {
+			showRecursiveConflict(err)
+			return err
+		}
+		pruneRecursiveCandidates(tx, excluded)
 
-	showRecursiveVerifyStart(len(tx.DownloadedArtifacts))
-	if err := VerifyDownloadedArtifacts(tx); err != nil {
-		return err
-	}
+		packages := recursiveCandidatePackages(tx)
+		showRecursiveDownloadStart(len(packages))
+		packages, err = downloadBatchPackages(serverInfo.WorkPath, packages)
+		if err != nil {
+			return err
+		}
+		backfillRecursiveDownloads(tx, packages)
+		tx.AdvanceTo(PhaseDownloaded)
 
-	diff, err := ReconcileTransaction(tx)
-	if err != nil {
-		showRecursiveConflict(err)
-		return err
-	}
-	if !diff.IsStable() {
-		return fmt.Errorf(
-			"install: recursive reconcile did not converge: %s",
-			reconcileDiffSummary(diff),
-		)
+		showRecursiveVerifyStart(len(tx.DownloadedArtifacts))
+		if err := VerifyDownloadedArtifacts(tx); err != nil {
+			return err
+		}
+
+		diff, err := ReconcileTransaction(tx)
+		if err != nil {
+			showRecursiveConflict(err)
+			return err
+		}
+		if diff.IsStable() {
+			break
+		}
+
+		if len(diff.Missing) == 0 && len(diff.Extra) == 0 {
+			return fmt.Errorf(
+				"install: recursive reconcile did not converge: %s",
+				reconcileDiffSummary(diff),
+			)
+		}
+
+		roots = appendMissingRoots(roots, diff.Missing)
+		for _, id := range diff.Extra {
+			excluded[id.StringPlatformName()] = struct{}{}
+		}
 	}
 
 	plan, err := buildRecursiveApplyPlan(tx)
@@ -278,6 +294,43 @@ func reconcileDiffSummary(diff ReconcileDiff) string {
 		return "no changes"
 	}
 	return strings.Join(parts, ", ")
+}
+
+func pruneRecursiveCandidates(tx *RecursiveTransaction, excluded map[string]struct{}) {
+	if tx == nil || len(excluded) == 0 {
+		return
+	}
+
+	for key := range excluded {
+		delete(tx.CandidateGraph, key)
+	}
+}
+
+func appendMissingRoots(existing []types.PackageId, missing []types.PackageId) []types.PackageId {
+	if len(missing) == 0 {
+		return existing
+	}
+
+	seen := make(map[string]struct{}, len(existing)+len(missing))
+	updated := make([]types.PackageId, 0, len(existing)+len(missing))
+	for _, id := range existing {
+		key := id.StringPlatformName()
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		updated = append(updated, id)
+	}
+	for _, id := range missing {
+		key := id.StringPlatformName()
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		updated = append(updated, id)
+	}
+
+	return updated
 }
 
 func downloadBatchPackages(
