@@ -19,6 +19,8 @@ import (
 )
 
 func InstallMany(ids []types.PackageId, source types.Source) error {
+	const maxReconcileIterations = 3
+
 	if len(ids) == 0 {
 		return nil
 	}
@@ -86,14 +88,20 @@ func InstallMany(ids []types.PackageId, source types.Source) error {
 
 	roots := append([]types.PackageId(nil), regularIds...)
 	excluded := map[string]struct{}{}
+	seedTx := NewRecursiveTransaction(roots, providers)
+	SnapshotInstalledConstraints(seedTx)
+	baseConstraints := append([]InstalledConstraint(nil), seedTx.InstalledConstraints...)
+	feedbackConstraints := []InstalledConstraint{}
 	var tx *RecursiveTransaction
+	var diff ReconcileDiff
 
-	for {
-		tx = NewRecursiveTransaction(roots, providers)
-		SnapshotInstalledConstraints(tx)
-
+	for iteration := range maxReconcileIterations {
 		showRecursiveResolveStart(roots)
-		tx, err = BuildCandidateGraph(roots, providers, tx.InstalledConstraints)
+		tx, err = BuildCandidateGraph(
+			roots,
+			providers,
+			mergeReconcileConstraints(baseConstraints, feedbackConstraints),
+		)
 		if err != nil {
 			showRecursiveConflict(err)
 			return err
@@ -114,7 +122,7 @@ func InstallMany(ids []types.PackageId, source types.Source) error {
 			return err
 		}
 
-		diff, err := ReconcileTransaction(tx)
+		diff, err = ReconcileTransaction(tx)
 		if err != nil {
 			showRecursiveConflict(err)
 			return err
@@ -123,14 +131,20 @@ func InstallMany(ids []types.PackageId, source types.Source) error {
 			break
 		}
 
-		if len(diff.Missing) == 0 && len(diff.Extra) == 0 {
+		if iteration == maxReconcileIterations-1 {
 			return fmt.Errorf(
-				"install: recursive reconcile did not converge: %s",
+				"install: recursive closure did not stabilize after %d iterations: %s",
+				maxReconcileIterations,
 				reconcileDiffSummary(diff),
 			)
 		}
 
 		roots = appendMissingRoots(roots, diff.Missing)
+		feedbackConstraints = mergeReconcileConstraints(
+			feedbackConstraints,
+			tightenedConstraintInputs(diff.Tightened),
+		)
+		excluded = make(map[string]struct{}, len(diff.Extra))
 		for _, id := range diff.Extra {
 			excluded[id.StringPlatformName()] = struct{}{}
 		}
@@ -331,6 +345,37 @@ func appendMissingRoots(existing []types.PackageId, missing []types.PackageId) [
 	}
 
 	return updated
+}
+
+func mergeReconcileConstraints(groups ...[]InstalledConstraint) []InstalledConstraint {
+	merged := make([]InstalledConstraint, 0)
+	index := make(map[string]int)
+
+	for _, group := range groups {
+		for _, constraint := range group {
+			key := reconcileConstraintInputKey(constraint.ConstraintInput)
+			if pos, ok := index[key]; ok {
+				merged[pos] = constraint
+				continue
+			}
+			index[key] = len(merged)
+			merged = append(merged, constraint)
+		}
+	}
+
+	return merged
+}
+
+func tightenedConstraintInputs(inputs []ConstraintInput) []InstalledConstraint {
+	constraints := make([]InstalledConstraint, 0, len(inputs))
+	for _, input := range inputs {
+		constraints = append(constraints, InstalledConstraint{ConstraintInput: input})
+	}
+	return constraints
+}
+
+func reconcileConstraintInputKey(input ConstraintInput) string {
+	return input.Requester + "|" + input.Dependency.Id.StringPlatformName()
 }
 
 func downloadBatchPackages(

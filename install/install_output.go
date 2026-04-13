@@ -2,32 +2,11 @@ package install
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/mclucy/lucy/logger"
 	"github.com/mclucy/lucy/types"
 )
-
-func showFetchStart(id types.PackageId) {
-	logger.ShowInfo(
-		fmt.Sprintf(
-			"fetching package metadata for %s",
-			id.StringFull(),
-		),
-	)
-}
-
-func showFetchSuccess(p types.Package) {
-	if p.Remote == nil {
-		return
-	}
-	logger.ShowInfo(
-		fmt.Sprintf(
-			"package metadata fetched from %s, resolved to %s",
-			p.Remote.Source.String(),
-			p.Id.StringFull(),
-		),
-	)
-}
 
 func showDownloadStart(url string) {
 	logger.ShowInfo(fmt.Sprintf("downloading from %s", url))
@@ -59,12 +38,11 @@ func joinPackageNames(ids []types.PackageId) string {
 	if len(ids) == 2 {
 		return ids[0].StringFull() + " and " + ids[1].StringFull()
 	}
-	result := ""
+	parts := make([]string, 0, len(ids))
 	for i := 0; i < len(ids)-1; i++ {
-		result += ids[i].StringFull() + ", "
+		parts = append(parts, ids[i].StringFull())
 	}
-	result += "and " + ids[len(ids)-1].StringFull()
-	return result
+	return strings.Join(parts, ", ") + ", and " + ids[len(ids)-1].StringFull()
 }
 
 func showRecursiveResolveStart(roots []types.PackageId) {
@@ -105,18 +83,9 @@ func showRecursiveConflict(err error) {
 	logger.ShowInfo(fmt.Sprintf("conflict: %s", err.Error()))
 }
 
-func showRecursiveCompatibleInstalled(id types.PackageId, installed types.Package) {
-	logger.ShowInfo(fmt.Sprintf("[recursive] compatible installed: %s (not auto-selected)", installed.Id.StringFull()))
-}
-
 func joinStrings(strs []string) string {
 	if len(strs) == 0 {
 		return "none"
 	}
-	result := ""
-	for i := 0; i < len(strs)-1; i++ {
-		result += strs[i] + ", "
-	}
-	result += strs[len(strs)-1]
-	return result
+	return strings.Join(strs, ", ")
 }

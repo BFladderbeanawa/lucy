@@ -3,11 +3,8 @@ package install
 import (
 	"errors"
 	"fmt"
-
-	"github.com/charmbracelet/huh"
 	"github.com/mclucy/lucy/probe"
 	"github.com/mclucy/lucy/types"
-	"github.com/mclucy/lucy/upstream"
 )
 
 type platformInstaller func(p types.Package) error
@@ -109,32 +106,4 @@ func installPlatform(id types.PackageId) error {
 	default:
 		return fmt.Errorf("cannot install platform: %s", id.Platform)
 	}
-}
-
-func selectFromCandidates(candidates []upstream.FetchResult) (
-	selected *upstream.FetchResult,
-	err error,
-) {
-	var selectedValue upstream.FetchResult
-	options := make([]huh.Option[upstream.FetchResult], len(candidates))
-	for i, candidate := range candidates {
-		options[i] = huh.NewOption(
-			candidate.Remote.Source.Title()+" "+candidate.Remote.Filename,
-			candidate,
-		)
-	}
-	err = huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[upstream.FetchResult]().
-				Title("Multiple candidates found, please select one").
-				Options(options...).
-				Value(&selectedValue),
-		),
-	).Run()
-	if err != nil {
-		return nil, err
-	}
-
-	selected = &selectedValue
-	return selected, nil
 }

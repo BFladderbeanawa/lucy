@@ -29,6 +29,9 @@ func BuildCandidateGraph(
 	constraintInputs := make([]ConstraintInput, 0, len(installedConstraints))
 	for _, installed := range installedConstraints {
 		constraintInputs = append(constraintInputs, installed.ConstraintInput)
+		if installed.Package.Id.Platform == "" || installed.Package.Id.Name == "" {
+			continue
+		}
 		key := installed.Package.Id.StringPlatformName()
 		if _, exists := tx.CandidateGraph[key]; exists {
 			continue
@@ -46,6 +49,7 @@ func BuildCandidateGraph(
 
 	queue := make([]candidateRequest, 0, len(roots))
 	for _, root := range roots {
+		ReportCompatibleInstalled(tx, root)
 		queue = append(queue, candidateRequest{
 			id:             root,
 			provenancePath: []string{"root"},
