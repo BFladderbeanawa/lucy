@@ -134,8 +134,11 @@ func (s provider) Dependencies(id types.PackageId) (
 	deps upstream.RawPackageDependencies,
 	err error,
 ) {
-	// TODO implement me
-	panic("implement me")
+	version, err := getVersion(id)
+	if err != nil {
+		return nil, fmt.Errorf("modrinth: dependencies fetch failed: %w", err)
+	}
+	return &modrinthDependencies{version: version, platform: id.Platform}, nil
 }
 
 func (s provider) ParseAmbiguousId(p types.PackageId) (
