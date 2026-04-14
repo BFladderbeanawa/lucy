@@ -3,8 +3,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/mclucy/lucy/util"
 	"github.com/spf13/cobra"
 )

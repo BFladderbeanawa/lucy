@@ -60,9 +60,6 @@ func runWithErrorLogging(fn func(cmd *cobra.Command, args []string) error) func(
 	}
 }
 
-// Keep the helper referenced until migrated cobra subcommands start using it.
-var _ = runWithErrorLogging
-
 // Execute runs the root command.
 func Execute() error {
 	return rootCmd.Execute()
