@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"slices"
 
@@ -12,48 +11,34 @@ import (
 	"github.com/mclucy/lucy/types"
 	"github.com/mclucy/lucy/upstream/routing"
 
-	"github.com/urfave/cli/v3"
+	"github.com/spf13/cobra"
 )
 
-var subcmdInfo = &cli.Command{
-	Name:  "info",
-	Usage: "Display information of a mod or plugin",
-	Flags: []cli.Flag{
-		flagSource,
-		flagJsonOutput,
-		flagLongOutput,
-		flagNoStyle,
-	},
-	ArgsUsage: "<package-identifier>",
-	Action: tools.Decorate(
-		actionInfo,
-		decoratorGlobalFlags,
-		decoratorHelpAndExitOnNoArg,
-		decoratorLogAndExitOnError,
-	),
-	ShellComplete: func(_ context.Context, cmd *cli.Command) {
-		request := ParseCompletionRequest(cmd)
-		if CompleteFlagValueIfRequested(request, map[string][]CompletionCandidate{
-			flagSourceName: StaticSourceCandidates(),
-		}) {
-			return
-		}
+// Backward compatibility alias - remove after migrating cmd.go to Cobra
+var subcmdInfo = infoCmd
 
-		if CompleteFlagNameIfRequested(request, cmd) {
-			return
-		}
-
-		CompletePackageIDIfRequested(context.Background(), cmd, request)
+var infoCmd = &cobra.Command{
+	Use:   "info",
+	Short: "Display information of a mod or plugin",
+	Args:  cobra.ExactArgs(1),
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return validateSourceFlag(cmd)
 	},
+	RunE: runWithErrorLogging(actionInfo),
 }
 
-var actionInfo cli.ActionFunc = func(
-	ctx context.Context,
-	cmd *cli.Command,
-) error {
-	id := syntax.Parse(cmd.Args().First())
+func init() {
+	addSourceFlag(infoCmd)
+	addJsonFlag(infoCmd)
+	addLongFlag(infoCmd)
+	addNoStyleFlag(infoCmd)
+	rootCmd.AddCommand(infoCmd)
+}
+
+func actionInfo(cmd *cobra.Command, args []string) error {
+	id := syntax.Parse(args[0])
 	p := id.NewPackage()
-	sourceArg := cmd.String(flagSourceName)
+	sourceArg, _ := cmd.Flags().GetString(flagSourceName)
 	specifiedSource := types.ParseSource(sourceArg)
 
 	var out *tui.Data
@@ -84,9 +69,11 @@ var actionInfo cli.ActionFunc = func(
 	}
 
 	p.Information, p.Remote = &infoResult.Information, &infoResult.Fetch.Remote
-	out = infoOutput(&p, cmd.Bool(flagLongOutput.Name))
+	long, _ := cmd.Flags().GetBool(flagLongName)
+	out = infoOutput(&p, long)
 
-	if cmd.Bool(flagJsonOutput.Name) {
+	jsonOut, _ := cmd.Flags().GetBool(flagJsonName)
+	if jsonOut {
 		tools.PrintAsJson(p)
 	} else {
 		tui.Flush(out)

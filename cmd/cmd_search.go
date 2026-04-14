@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -12,8 +11,7 @@ import (
 	"github.com/mclucy/lucy/tui"
 	"github.com/mclucy/lucy/types"
 	"github.com/mclucy/lucy/upstream/routing"
-
-	"github.com/urfave/cli/v3"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -21,68 +19,46 @@ const (
 	flagClientName = "client"
 )
 
-var subcmdSearch = &cli.Command{
-	Name:  "search",
-	Usage: "Search for mods and plugins",
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:    flagIndexName,
-			Aliases: []string{"i"},
-			Usage:   "Index search results by `INDEX`",
-			Value:   "relevance",
-			Validator: func(s string) error {
-				if types.SearchSort(s).Valid() {
-					return nil
-				}
-				return errors.New("must be one of \"relevance\", \"downloads\",\"newest\"")
-			},
-		},
-		&cli.BoolFlag{
-			Name:    flagClientName,
-			Aliases: []string{"c"},
-			Usage:   "Also show client-only mods in results",
-			Value:   false,
-		},
-		flagJsonOutput,
-		flagLongOutput,
-		flagNoStyle,
-		flagSource,
-	},
-	ArgsUsage: "<platform/name>",
-	Action: tools.Decorate(
-		actionSearch,
-		decoratorGlobalFlags,
-		decoratorHelpAndExitOnNoArg,
-		decoratorLogAndExitOnError,
-	),
-	ShellComplete: func(ctx context.Context, cmd *cli.Command) {
-		request := ParseCompletionRequest(cmd)
-		if CompleteFlagValueIfRequested(request, map[string][]CompletionCandidate{
-			flagIndexName:  StaticSortCandidates(),
-			flagSourceName: StaticSourceCandidates(),
-		}) {
-			return
+var searchCmd = &cobra.Command{
+	Use:   "search",
+	Short: "Search for mods and plugins",
+	Args:  cobra.ExactArgs(1),
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		index, _ := cmd.Flags().GetString(flagIndexName)
+		if !types.SearchSort(index).Valid() {
+			return errors.New("--index must be one of \"relevance\", \"downloads\", \"newest\"")
 		}
-
-		if CompleteFlagNameIfRequested(request, cmd) {
-			return
-		}
-
-		CompletePackageIDIfRequested(ctx, cmd, request)
+		return validateSourceFlag(cmd)
 	},
+	RunE: runWithErrorLogging(actionSearch),
 }
 
-var actionSearch cli.ActionFunc = func(
-	_ context.Context,
-	cmd *cli.Command,
-) error {
-	p := syntax.Parse(cmd.Args().First())
-	options := types.SearchOptions{
-		IncludeClient: cmd.Bool(flagClientName),
-		SortBy:        types.SearchSort(cmd.String(flagIndexName)),
-	}
-	sourceArg := cmd.String(flagSourceName)
+// subcmdSearch is an alias for searchCmd for backward compatibility.
+// TODO: Remove after cmd/cmd.go is migrated to Cobra.
+var subcmdSearch = searchCmd
+
+func init() {
+	searchCmd.Flags().StringP(flagIndexName, "i", "relevance", "Index search results by INDEX")
+	searchCmd.Flags().BoolP(flagClientName, "c", false, "Also show client-only mods in results")
+	addJsonFlag(searchCmd)
+	addLongFlag(searchCmd)
+	addNoStyleFlag(searchCmd)
+	addSourceFlag(searchCmd)
+	rootCmd.AddCommand(searchCmd)
+}
+
+func actionSearch(cmd *cobra.Command, args []string) error {
+	p := syntax.Parse(args[0])
+	index, _ := cmd.Flags().GetString(flagIndexName)
+	client, _ := cmd.Flags().GetBool(flagClientName)
+	long, _ := cmd.Flags().GetBool(flagLongName)
+	sourceArg, _ := cmd.Flags().GetString(flagSourceName)
 	specifiedSource := types.ParseSource(sourceArg)
+
+	options := types.SearchOptions{
+		IncludeClient: client,
+		SortBy:        types.SearchSort(index),
+	}
 
 	out := &tui.Data{}
 	providers, err := routing.ResolveProviders(p.Platform, specifiedSource)
@@ -113,7 +89,7 @@ var actionSearch cli.ActionFunc = func(
 	}
 
 	for _, res := range results {
-		appendToSearchOutput(out, cmd.Bool(flagLongName), res)
+		appendToSearchOutput(out, long, res)
 	}
 
 	tui.Flush(out)
