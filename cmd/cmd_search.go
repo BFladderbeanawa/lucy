@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -23,6 +24,9 @@ var searchCmd = &cobra.Command{
 	Use:   "search",
 	Short: "Search for mods and plugins",
 	Args:  cobra.ExactArgs(1),
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return CompletePackageIDSuggestions(context.Background(), "search", toComplete)
+	},
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		index, _ := cmd.Flags().GetString(flagIndexName)
 		if !types.SearchSort(index).Valid() {
@@ -44,6 +48,20 @@ func init() {
 	addLongFlag(searchCmd)
 	addNoStyleFlag(searchCmd)
 	addSourceFlag(searchCmd)
+	_ = searchCmd.RegisterFlagCompletionFunc(flagSourceName, func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		var vals []string
+		for _, c := range StaticSourceCandidates() {
+			vals = append(vals, c.Value)
+		}
+		return FilterByPrefixStrings(vals, toComplete), cobra.ShellCompDirectiveNoFileComp
+	})
+	_ = searchCmd.RegisterFlagCompletionFunc(flagIndexName, func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		var vals []string
+		for _, c := range StaticSortCandidates() {
+			vals = append(vals, c.Value)
+		}
+		return FilterByPrefixStrings(vals, toComplete), cobra.ShellCompDirectiveNoFileComp
+	})
 	rootCmd.AddCommand(searchCmd)
 }
 

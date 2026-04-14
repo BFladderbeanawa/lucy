@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/mclucy/lucy/install"
@@ -19,6 +20,9 @@ var addCmd = &cobra.Command{
 	Use:   "add",
 	Short: "Add new mods, plugins, or server modules",
 	Args:  cobra.MinimumNArgs(1),
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return CompletePackageIDSuggestions(context.Background(), "add", toComplete)
+	},
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		withOptional, _ := cmd.Flags().GetBool(flagWithOptionalName)
 		noOptional, _ := cmd.Flags().GetBool(flagNoOptionalName)

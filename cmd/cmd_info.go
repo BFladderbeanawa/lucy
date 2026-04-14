@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"slices"
 
@@ -21,6 +22,9 @@ var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Display information of a mod or plugin",
 	Args:  cobra.ExactArgs(1),
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return CompletePackageIDSuggestions(context.Background(), "info", toComplete)
+	},
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		return validateSourceFlag(cmd)
 	},
@@ -32,6 +36,13 @@ func init() {
 	addJsonFlag(infoCmd)
 	addLongFlag(infoCmd)
 	addNoStyleFlag(infoCmd)
+	_ = infoCmd.RegisterFlagCompletionFunc(flagSourceName, func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		var vals []string
+		for _, c := range StaticSourceCandidates() {
+			vals = append(vals, c.Value)
+		}
+		return FilterByPrefixStrings(vals, toComplete), cobra.ShellCompDirectiveNoFileComp
+	})
 	rootCmd.AddCommand(infoCmd)
 }
 
