@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
+	"github.com/mclucy/lucy/state"
 )
 
 // RunInteractiveInit walks the user through the interactive init flow via huh
@@ -21,7 +22,7 @@ func RunInteractiveInit(s *InitFlowState) error {
 					"lucy init sets up a new Lucy-managed Minecraft server environment in the\n"+
 						"current directory. It will create the following files:\n\n"+
 						"  .lucy/config.toml   – policy and source defaults\n"+
-						"  .lucy/manifest.toml – environment intent (game version, platform, mods)\n"+
+						"  .lucy/manifest.toml – environment intent (game version, runtime, compatible platforms, mods)\n"+
 						"  .lucy/lock.json     – resolved dependency graph\n\n"+
 						"No files will be written until you confirm at the final review step.",
 				),
@@ -125,13 +126,13 @@ func RunInteractiveInit(s *InitFlowState) error {
 	platformForm := huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
-				Title("Server platform").
-				Description("Choose the modding platform or server core for this environment.").
+				Title("Primary runtime").
+				Description("Choose the main server runtime Lucy should treat as the primary host environment.").
 				Options(
 					huh.NewOption("Fabric – lightweight, fast-updating mod loader", "fabric"),
 					huh.NewOption("NeoForge – community fork of Forge (recommended for 1.20.2+)", "neoforge"),
 					huh.NewOption("Forge – original mod loader", "forge"),
-					huh.NewOption("MCDR – independent plugin framework/controller", "mcdr"),
+					huh.NewOption("MCDR – standalone controller/plugin framework", "mcdr"),
 					huh.NewOption("None / Vanilla – no modding platform", "none"),
 				).
 				Value(&s.Platform),
@@ -145,6 +146,38 @@ func RunInteractiveInit(s *InitFlowState) error {
 		return fmt.Errorf("platform step: %w", err)
 	}
 	s.CurrentStep = StepPlatformVersion
+
+	compatibleOptions := state.CompatiblePlatformOptions(s.Platform)
+	if len(compatibleOptions) > 0 {
+		selected := append([]string(nil), s.CompatiblePlatforms...)
+		options := make([]huh.Option[string], 0, len(compatibleOptions))
+		for _, platform := range compatibleOptions {
+			label := compatiblePlatformLabel(platform)
+			options = append(options, huh.NewOption(label, platform))
+		}
+		compatibleForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewMultiSelect[string]().
+					Title("Additional compatible platforms").
+					Description("Select extra compatibility layers Lucy should record alongside the primary runtime. Only valid combinations for the chosen runtime are shown.").
+					Options(options...).
+					Value(&selected),
+			),
+		)
+		if err := compatibleForm.Run(); err != nil {
+			if isUserAbort(err) {
+				s.Aborted = true
+				return nil
+			}
+			return fmt.Errorf("compatible platforms step: %w", err)
+		}
+		s.CompatiblePlatforms = selected
+	} else {
+		s.CompatiblePlatforms = nil
+	}
+	if err := ValidatePlatformSelection(s.Platform, s.CompatiblePlatforms); err != nil {
+		return fmt.Errorf("platform selection step: %w", err)
+	}
 
 	if s.Platform != "" && s.Platform != "none" {
 		platformVersionForm := huh.NewForm(
@@ -228,9 +261,12 @@ func buildSummary(s *InitFlowState) string {
 	_, _ = fmt.Fprintf(&sb, "Game version:    %s\n", s.GameVersion)
 
 	if s.Platform == "" || s.Platform == "none" {
-		sb.WriteString("Platform:        none (vanilla)\n")
+		sb.WriteString("Primary runtime: none (vanilla)\n")
 	} else {
-		_, _ = fmt.Fprintf(&sb, "Platform:        %s\n", s.Platform)
+		_, _ = fmt.Fprintf(&sb, "Primary runtime: %s\n", s.Platform)
+		if len(s.CompatiblePlatforms) > 0 {
+			_, _ = fmt.Fprintf(&sb, "Compatible with: %s\n", strings.Join(s.CompatiblePlatforms, ", "))
+		}
 		if s.PlatformVersion != "" {
 			_, _ = fmt.Fprintf(&sb, "Loader version:  %s\n", s.PlatformVersion)
 		} else {
@@ -272,4 +308,17 @@ func isUserAbort(err error) bool {
 		return false
 	}
 	return errors.Is(err, huh.ErrUserAborted)
+}
+
+func compatiblePlatformLabel(platform string) string {
+	switch platform {
+	case "fabric":
+		return "Fabric compatibility – allow Fabric-targeted content through a bridge/runtime layer"
+	case "mcdr":
+		return "MCDR – independent controller/plugin framework"
+	case "sinytra":
+		return "Sinytra – NeoForge bridge layer for Fabric compatibility"
+	default:
+		return platform
+	}
 }
