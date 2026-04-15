@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -12,8 +13,11 @@ import (
 //
 // Lock MUST NOT own policy defaults, desired roots, or observed runtime state.
 type Lock struct {
-	Version             string          `json:"version"`
-	GeneratedAt         string          `json:"generated_at"`
+	Version     string `json:"version"`
+	GeneratedAt string `json:"generated_at"`
+	// ManifestFingerprint binds the exact lock facts to one serialized manifest
+	// intent document. If the manifest bytes change, the lock is stale even when
+	// package IDs still overlap.
 	ManifestFingerprint string          `json:"manifest_fingerprint"`
 	GameVersion         string          `json:"game_version"`
 	Platform            string          `json:"platform"`
@@ -25,7 +29,10 @@ type Lock struct {
 // LockedPackage records one exact resolved artifact and how it entered the
 // resolved graph.
 type LockedPackage struct {
-	ID            string   `json:"id"`
+	ID string `json:"id"`
+	// Version is the final concrete version chosen for this resolved artifact.
+	// Lock entries are fact records, so fuzzy selectors and ranges are invalid
+	// here even when the manifest used them as intent.
 	Version       string   `json:"version"`
 	Source        string   `json:"source"`
 	URL           string   `json:"url"`
@@ -117,7 +124,7 @@ func validateLockedPackage(pkg LockedPackage) error {
 	if pkg.Version == "" {
 		return fmt.Errorf("version is required")
 	}
-	if isSpecialLockVersion(pkg.Version) {
+	if !isExactLockVersion(pkg.Version) {
 		return fmt.Errorf("version must be exact, got %q", pkg.Version)
 	}
 	if !isValidLockSource(pkg.Source) {
@@ -176,6 +183,26 @@ func validateLockedBundle(bundle LockedBundle) error {
 		return fmt.Errorf("install_path is required")
 	}
 	return nil
+}
+
+func isExactLockVersion(version string) bool {
+	if isSpecialLockVersion(version) {
+		return false
+	}
+	for _, token := range []string{" ", "\t", "\n", "\r", ",", "||", "*", "^", "~", ">", "<", "=", "[", "]", "(", ")"} {
+		if strings.Contains(version, token) {
+			return false
+		}
+	}
+	for _, token := range []string{".x", ".X", "-x", "-X", "x.", "X."} {
+		if strings.Contains(version, token) {
+			return false
+		}
+	}
+	if strings.EqualFold(version, "x") {
+		return false
+	}
+	return true
 }
 
 func isSpecialLockVersion(version string) bool {
