@@ -150,6 +150,7 @@ func writeInitResult(workDir string, s *lucyinit.InitFlowState) error {
 			return fmt.Errorf("write lock: %w", err)
 		}
 	}
+	lucyinit.RefreshObservedStateAfterInitWrites(workDir)
 
 	printInitSummary(result)
 	return nil

@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mclucy/lucy/probe"
 	"github.com/mclucy/lucy/state"
 )
 
@@ -92,7 +93,7 @@ const (
 	// "1.21.4"). This is the only mandatory question for a minimal init.
 	StepGameVersion InitStep = "game_version"
 
-	// StepPlatform asks which server platform to use.
+	// StepPlatform asks which primary server runtime to use.
 	// Valid values: "fabric", "neoforge", "forge", "mcdr", "none"
 	// "none" means vanilla or an as-yet-unknown platform.
 	StepPlatform InitStep = "platform"
@@ -178,6 +179,10 @@ type InitFlowState struct {
 	// PlatformVersion is the chosen loader/platform version.
 	// Empty when Platform == "none" or when the user skips the step.
 	PlatformVersion string
+
+	// CompatiblePlatforms are extra compatible ecosystems/controller layers that
+	// can coexist with the primary runtime. Example: neoforge + fabric + sinytra + mcdr.
+	CompatiblePlatforms []string
 
 	// ManagedRoots is the list of relative directory paths Lucy will manage.
 	// Populated from config defaults on construction; the user may edit it in
@@ -282,6 +287,9 @@ func NewInitFlowState(workDir string) *InitFlowState {
 			if strings.TrimSpace(s.PlatformVersion) == "" && strings.TrimSpace(manifest.Environment.PlatformVersion) != "" {
 				s.PlatformVersion = strings.TrimSpace(manifest.Environment.PlatformVersion)
 			}
+			if len(s.CompatiblePlatforms) == 0 && len(manifest.Environment.CompatiblePlatforms) > 0 {
+				s.CompatiblePlatforms = append([]string(nil), manifest.Environment.CompatiblePlatforms...)
+			}
 			if len(manifest.Policy.ManagedRoots) > 0 {
 				if len(s.ManagedRoots) == 0 {
 					s.ManagedRoots = append([]string(nil), manifest.Policy.ManagedRoots...)
@@ -310,6 +318,13 @@ func containsExistingFile(files []string, want string) (int, bool) {
 
 func formatExistingStateConflict(file state.StateFile, err error) string {
 	return fmt.Sprintf("%s exists but could not be preserved safely: %v", file, err)
+}
+
+// RefreshObservedStateAfterInitWrites refreshes probe state for the initialized
+// directory so any subsequent takeover/status reads see post-init filesystem
+// reality rather than stale memoized observations.
+func RefreshObservedStateAfterInitWrites(workDir string) {
+	probe.RefreshServerInfo(workDir)
 }
 
 // Step machine logic
@@ -364,10 +379,20 @@ func CanProceed(s *InitFlowState) bool {
 	if s.GameVersion == "" {
 		return false
 	}
+	if err := ValidatePlatformSelection(s.Platform, s.CompatiblePlatforms); err != nil {
+		return false
+	}
 	if len(s.ManagedRoots) == 0 {
 		return false
 	}
 	return true
+}
+
+func ValidatePlatformSelection(primary string, compatible []string) error {
+	return state.ValidateManifestEnvironment(state.ManifestEnvironment{
+		Platform:            primary,
+		CompatiblePlatforms: compatible,
+	})
 }
 
 // Types for the final result of the flow and error conditions during result construction.
@@ -460,6 +485,7 @@ func BuildResult(s *InitFlowState) (InitFlowResult, error) {
 		mf.Environment.GameVersion = s.GameVersion
 		mf.Environment.Platform = s.Platform
 		mf.Environment.PlatformVersion = s.PlatformVersion
+		mf.Environment.CompatiblePlatforms = append([]string(nil), s.CompatiblePlatforms...)
 		mf.Policy.ManagedRoots = s.ManagedRoots
 		result.ManifestToWrite = &mf
 		result.WrittenFiles = append(result.WrittenFiles, mfPath)

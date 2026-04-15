@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/mclucy/lucy/exttype"
+	"github.com/mclucy/lucy/probe"
 	"github.com/mclucy/lucy/state"
 	"github.com/mclucy/lucy/types"
 	"github.com/pelletier/go-toml"
@@ -54,30 +55,35 @@ func (h ExistingLucyHints) HasAny() bool {
 	return h.ConfigPresent || h.ManifestPresent || h.LockPresent || h.GameVersion != "" || h.Platform != "" || h.PlatformVersion != "" || len(h.ManagedRoots) > 0
 }
 
-// DiscoverServerDefaults is the lightweight takeover aggregator used by the
-// current init flow. Contractually, takeover-class init must aggregate current
-// server information before it proposes desired intent:
+// DiscoverServerDefaults is the takeover aggregator used by the current init
+// flow. Contractually, takeover-class init must aggregate current server
+// information before it proposes desired intent:
 //   - discovery-first is only about sequence: discover before asking
 //   - discovery-led is about behavior: observed facts become the primary input
 //     to the proposal, and stale .lucy files are demoted to advisory hints
 //
-// Until init is wired into probe.ServerInfo(), this function approximates the
-// observed layer with local file and archive inspection. Existing .lucy state is
-// recorded separately and only fills gaps when no live observation is available.
+// probe.ServerInfoAt(workDir) now provides the primary observed-state layer so
+// takeover candidates come from the richer probe/runtime model first. Local
+// file/archive heuristics remain fallback-only for gaps the probe could not
+// explain. Existing .lucy state is recorded separately and only fills gaps when
+// no live observation is available.
 func DiscoverServerDefaults(workDir string) DiscoveredDefaults {
 	defaults := DiscoveredDefaults{Confidence: ConfidenceNone}
+	applyObservedDefaults(&defaults, workDir, probe.ServerInfoAt(workDir))
 
 	if version := discoverGameVersion(workDir); version != "" {
-		defaults.GameVersion = version
+		if defaults.GameVersion == "" {
+			defaults.GameVersion = version
+		}
 		defaults.Confidence = maxConfidence(defaults.Confidence, ConfidenceMedium)
 	}
 
 	platform, platformVersion, platformConfidence := discoverPlatform(workDir)
-	if platform != "" {
+	if platform != "" && defaults.Platform == "" {
 		defaults.Platform = platform
 		defaults.Confidence = maxConfidence(defaults.Confidence, platformConfidence)
 	}
-	if platformVersion != "" {
+	if platformVersion != "" && defaults.PlatformVersion == "" {
 		defaults.PlatformVersion = platformVersion
 		defaults.Confidence = maxConfidence(defaults.Confidence, platformConfidence)
 	}
@@ -87,7 +93,7 @@ func DiscoverServerDefaults(workDir string) DiscoveredDefaults {
 		defaults.Confidence = ConfidenceLow
 	}
 
-	defaults.DetectedPackages = discoverPackages(workDir)
+	defaults.DetectedPackages = appendUnique(defaults.DetectedPackages, discoverPackages(workDir)...)
 	if len(defaults.DetectedPackages) > 0 && defaults.Confidence == ConfidenceNone {
 		defaults.Confidence = ConfidenceLow
 	}
@@ -128,6 +134,139 @@ func DiscoverServerDefaults(workDir string) DiscoveredDefaults {
 	}
 
 	return defaults
+}
+
+func applyObservedDefaults(defaults *DiscoveredDefaults, workDir string, observed types.ServerInfo) {
+	if defaults == nil {
+		return
+	}
+
+	if runtime := observed.Runtime; runtime != nil {
+		if gameVersion := sanitizeObservedVersion(runtime.GameVersion.String()); gameVersion != "" {
+			defaults.GameVersion = gameVersion
+			defaults.Confidence = maxConfidence(defaults.Confidence, ConfidenceHigh)
+		}
+		if platform := runtime.DerivedModLoader(); platform.Valid() && platform != types.PlatformMinecraft {
+			defaults.Platform = string(platform)
+			defaults.Confidence = maxConfidence(defaults.Confidence, ConfidenceHigh)
+			defaults.ManagedRoots = appendUnique(defaults.ManagedRoots, defaultManagedRootsForPlatform(string(platform))...)
+			if identity := runtimeIdentityPackage(string(platform)); identity != "" {
+				defaults.DetectedPackages = appendUnique(defaults.DetectedPackages, identity)
+			}
+		}
+		if version := sanitizeObservedVersion(runtime.DerivedLoaderVersion()); version != "" {
+			defaults.PlatformVersion = version
+			defaults.Confidence = maxConfidence(defaults.Confidence, ConfidenceHigh)
+		} else if defaults.Platform != "" {
+			if version := discoverObservedLoaderVersion(workDir, types.Platform(defaults.Platform)); version != "" {
+				defaults.PlatformVersion = version
+				defaults.Confidence = maxConfidence(defaults.Confidence, ConfidenceHigh)
+			}
+		}
+	}
+
+	defaults.ManagedRoots = appendUnique(defaults.ManagedRoots, managedRootsFromObservedPaths(workDir, observed.ModPath)...)
+	if observed.Environments.Mcdr != nil && observed.Environments.Mcdr.Config != nil {
+		defaults.ManagedRoots = appendUnique(defaults.ManagedRoots, managedRootsFromObservedPaths(workDir, observed.Environments.Mcdr.Config.PluginDirectories)...)
+	}
+	if len(defaults.ManagedRoots) > 0 {
+		defaults.Confidence = maxConfidence(defaults.Confidence, ConfidenceHigh)
+	}
+
+	defaults.DetectedPackages = appendUnique(defaults.DetectedPackages, packageCandidatesFromObserved(observed.Packages)...)
+	if len(defaults.DetectedPackages) > 0 {
+		defaults.Confidence = maxConfidence(defaults.Confidence, ConfidenceHigh)
+	}
+}
+
+func managedRootsFromObservedPaths(workDir string, paths []string) []string {
+	roots := make([]string, 0, len(paths))
+	for _, candidate := range paths {
+		root := normalizeObservedRoot(workDir, candidate)
+		if root == "" {
+			continue
+		}
+		roots = append(roots, root)
+	}
+	sort.Strings(roots)
+	return uniqueStrings(roots)
+}
+
+func normalizeObservedRoot(workDir, candidate string) string {
+	candidate = strings.TrimSpace(candidate)
+	if candidate == "" {
+		return ""
+	}
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(workDir, candidate)
+	}
+	rel, err := filepath.Rel(workDir, candidate)
+	if err != nil {
+		return ""
+	}
+	rel = filepath.Clean(rel)
+	if rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return ""
+	}
+	return filepath.ToSlash(rel)
+}
+
+func packageCandidatesFromObserved(packages []types.Package) []string {
+	candidates := make([]string, 0, len(packages))
+	for _, pkg := range packages {
+		if pkg.Id.Platform == types.PlatformAny || pkg.Id.Platform == types.PlatformUnknown || strings.TrimSpace(pkg.Id.Name.String()) == "" {
+			continue
+		}
+		candidates = append(candidates, pkg.Id.StringPlatformName())
+	}
+	sort.Strings(candidates)
+	return uniqueStrings(candidates)
+}
+
+func defaultManagedRootsForPlatform(platform string) []string {
+	switch types.Platform(strings.TrimSpace(platform)) {
+	case types.PlatformFabric, types.PlatformForge, types.PlatformNeoforge:
+		return []string{"mods"}
+	case types.PlatformMCDR:
+		return []string{"plugins"}
+	default:
+		return nil
+	}
+}
+
+func runtimeIdentityPackage(platform string) string {
+	p := types.Platform(strings.TrimSpace(platform))
+	if p == types.PlatformNone || !p.Valid() {
+		return ""
+	}
+	return types.PackageId{Platform: p, Name: types.ProjectName(p.String())}.StringPlatformName()
+}
+
+func discoverObservedLoaderVersion(workDir string, platform types.Platform) string {
+	entries, err := os.ReadDir(workDir)
+	if err != nil {
+		return ""
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".jar") {
+			continue
+		}
+		version := discoverLoaderVersion(filepath.Join(workDir, entry.Name()), platform)
+		if version != "" {
+			return version
+		}
+	}
+	return ""
+}
+
+func sanitizeObservedVersion(value string) string {
+	value = strings.TrimSpace(value)
+	switch strings.ToLower(value) {
+	case "", "none", "unknown":
+		return ""
+	default:
+		return value
+	}
 }
 
 func ApplyDiscoveredDefaults(s *InitFlowState, defaults DiscoveredDefaults) {
@@ -214,6 +353,48 @@ func discoverPlatform(workDir string) (string, string, DiscoveryConfidence) {
 	}
 
 	return "", "", ConfidenceNone
+}
+
+func discoverLoaderVersion(path string, platform types.Platform) string {
+	reader, err := zip.OpenReader(path)
+	if err != nil {
+		return ""
+	}
+	defer reader.Close()
+
+	manifest, ok := readArchiveFile(&reader.Reader, "META-INF/MANIFEST.MF")
+	if !ok {
+		return ""
+	}
+
+	for line := range strings.SplitSeq(string(manifest), "\n") {
+		line = strings.TrimSpace(line)
+		switch platform {
+		case types.PlatformFabric:
+			if version := trimVersionFromManifestClasspath(line, "libraries/net/fabricmc/fabric-loader/"); version != "" {
+				return version
+			}
+		case types.PlatformNeoforge:
+			if version := trimVersionFromManifestClasspath(line, "libraries/net/neoforged/neoforge/"); version != "" {
+				return version
+			}
+		case types.PlatformForge:
+			if version := trimVersionFromManifestClasspath(line, "libraries/net/minecraftforge/forge/"); version != "" {
+				return version
+			}
+		}
+	}
+
+	return ""
+}
+
+func trimVersionFromManifestClasspath(line, marker string) string {
+	_, rest, ok := strings.Cut(line, marker)
+	if !ok {
+		return ""
+	}
+	version, _, _ := strings.Cut(rest, "/")
+	return sanitizeObservedVersion(version)
 }
 
 func detectManagedRoots(workDir string) []string {
