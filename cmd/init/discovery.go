@@ -29,13 +29,14 @@ const (
 )
 
 type DiscoveredDefaults struct {
-	GameVersion      string
-	Platform         string
-	PlatformVersion  string
-	ManagedRoots     []string
-	DetectedPackages []string
-	Confidence       DiscoveryConfidence
-	ExistingLucy     ExistingLucyHints
+	GameVersion            string
+	Platform               string
+	PlatformVersion        string
+	ManagedRoots           []string
+	DetectedPackages       []string
+	PackageClassifications []TakeoverPackageClassification
+	Confidence             DiscoveryConfidence
+	ExistingLucy           ExistingLucyHints
 }
 
 // ExistingLucyHints captures pre-existing .lucy state as advisory context.
@@ -173,8 +174,12 @@ func applyObservedDefaults(defaults *DiscoveredDefaults, workDir string, observe
 		defaults.Confidence = maxConfidence(defaults.Confidence, ConfidenceHigh)
 	}
 
+	defaults.PackageClassifications = BuildTakeoverPackageClassifications(observed.Packages)
 	defaults.DetectedPackages = appendUnique(defaults.DetectedPackages, packageCandidatesFromObserved(observed.Packages)...)
-	if len(defaults.DetectedPackages) > 0 {
+	for _, classification := range defaults.PackageClassifications {
+		defaults.DetectedPackages = appendUnique(defaults.DetectedPackages, classification.ID)
+	}
+	if len(defaults.DetectedPackages) > 0 || len(defaults.PackageClassifications) > 0 {
 		defaults.Confidence = maxConfidence(defaults.Confidence, ConfidenceHigh)
 	}
 }
@@ -281,6 +286,9 @@ func ApplyDiscoveredDefaults(s *InitFlowState, defaults DiscoveredDefaults) {
 	}
 	if len(s.ManagedRoots) == 0 {
 		s.ManagedRoots = append([]string(nil), defaults.ManagedRoots...)
+	}
+	if len(s.PackageClassifications) == 0 {
+		s.PackageClassifications = append([]TakeoverPackageClassification(nil), defaults.PackageClassifications...)
 	}
 }
 

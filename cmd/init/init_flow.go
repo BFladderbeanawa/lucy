@@ -20,10 +20,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mclucy/lucy/probe"
 	"github.com/mclucy/lucy/state"
+	"github.com/mclucy/lucy/types"
 )
 
 // InitOptimizationGoal states what init is trying to optimize for.
@@ -111,6 +113,11 @@ const (
 	// taken from state.ConfigDefaults().Scope.ManagedRoots.
 	StepManagedScope InitStep = "managed_scope"
 
+	// StepPackageClassification lets the user review the detected package graph,
+	// distinguish leaf packages from graph-only dependencies, and classify them
+	// into the existing manifest roles without inventing a new persistent role.
+	StepPackageClassification InitStep = "package_classification"
+
 	// StepReview shows the user a complete summary of what will be written
 	// before any file I/O occurs. Confirmation here sets Confirmed = true.
 	StepReview InitStep = "review"
@@ -128,6 +135,7 @@ var stepOrder = []InitStep{
 	StepPlatform,
 	StepPlatformVersion,
 	StepManagedScope,
+	StepPackageClassification,
 	StepReview,
 	StepDone,
 }
@@ -188,6 +196,12 @@ type InitFlowState struct {
 	// Populated from config defaults on construction; the user may edit it in
 	// StepManagedScope.
 	ManagedRoots []string
+
+	// PackageClassifications is the in-session takeover graph classification.
+	// It surfaces all discovered packages, marks whether each package is a leaf
+	// or a dependency node, and maps operator choices onto the existing manifest
+	// roles: required, transitive, or ignored.
+	PackageClassifications []TakeoverPackageClassification
 
 	// SourcePriority is the ordered list of package sources.
 	// Populated from config defaults on construction; the user may reorder in
@@ -364,8 +378,180 @@ func shouldSkip(s *InitFlowState, step InitStep) bool {
 	case StepPlatformVersion:
 		// Skip if no platform was selected or platform is vanilla/none.
 		return s.Platform == "" || s.Platform == "none"
+	case StepPackageClassification:
+		return len(s.PackageClassifications) == 0
 	}
 	return false
+}
+
+type TakeoverPackageClassification struct {
+	ID         string
+	Version    string
+	Source     string
+	Role       state.ManifestRole
+	Side       state.ManifestSide
+	Optional   bool
+	Pinned     bool
+	Leaf       bool
+	Requires   []string
+	RequiredBy []string
+}
+
+func BuildTakeoverPackageClassifications(packages []types.Package) []TakeoverPackageClassification {
+	classifications := make(map[string]TakeoverPackageClassification, len(packages))
+	nameIndex := make(map[string][]string)
+
+	for _, pkg := range packages {
+		id := pkg.Id.StringPlatformName()
+		if !takeoverPackageIDAllowed(pkg.Id) {
+			continue
+		}
+		classifications[id] = TakeoverPackageClassification{
+			ID:      id,
+			Version: takeoverManifestVersion(pkg.Id.Version),
+			Source:  takeoverManifestSource(pkg.Remote),
+			Role:    state.RoleTransitive,
+			Side:    state.SideUnknown,
+		}
+		name := strings.TrimSpace(pkg.Id.Name.String())
+		nameIndex[name] = append(nameIndex[name], id)
+	}
+
+	for name := range nameIndex {
+		sort.Strings(nameIndex[name])
+	}
+
+	for _, pkg := range packages {
+		fromID := pkg.Id.StringPlatformName()
+		classification, ok := classifications[fromID]
+		if !ok {
+			continue
+		}
+		for _, depID := range resolveTakeoverDependencyTargets(pkg, classifications, nameIndex) {
+			classification.Requires = appendUniqueStrings(classification.Requires, depID)
+			dep := classifications[depID]
+			dep.RequiredBy = appendUniqueStrings(dep.RequiredBy, fromID)
+			classifications[depID] = dep
+		}
+		classifications[fromID] = classification
+	}
+
+	result := make([]TakeoverPackageClassification, 0, len(classifications))
+	for _, classification := range classifications {
+		sort.Strings(classification.Requires)
+		sort.Strings(classification.RequiredBy)
+		classification.Leaf = len(classification.RequiredBy) == 0
+		if classification.Leaf {
+			classification.Role = state.RoleRequired
+		}
+		result = append(result, classification)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].ID < result[j].ID
+	})
+	return result
+}
+
+func takeoverPackageIDAllowed(id types.PackageId) bool {
+	if strings.TrimSpace(id.Name.String()) == "" {
+		return false
+	}
+	if !id.Platform.Valid() || id.Platform == types.PlatformAny || id.Platform == types.PlatformUnknown || id.Platform == types.PlatformMinecraft {
+		return false
+	}
+	return true
+}
+
+func resolveTakeoverDependencyTargets(pkg types.Package, classifications map[string]TakeoverPackageClassification, nameIndex map[string][]string) []string {
+	if pkg.Dependencies == nil {
+		return nil
+	}
+
+	targets := make([]string, 0, len(pkg.Dependencies.Value))
+	for _, dep := range pkg.Dependencies.Value {
+		if dep.Embedded {
+			continue
+		}
+		depID := dep.Id.StringPlatformName()
+		if _, ok := classifications[depID]; ok {
+			targets = appendUniqueStrings(targets, depID)
+			continue
+		}
+		if dep.Id.Platform == types.PlatformAny || dep.Id.Platform == types.PlatformUnknown {
+			matches := nameIndex[strings.TrimSpace(dep.Id.Name.String())]
+			if len(matches) == 1 {
+				targets = appendUniqueStrings(targets, matches[0])
+			}
+		}
+	}
+	return targets
+}
+
+func takeoverManifestVersion(version types.RawVersion) string {
+	trimmed := strings.TrimSpace(version.String())
+	switch trimmed {
+	case "", "any", "none", "unknown":
+		return types.VersionCompatible.String()
+	default:
+		return trimmed
+	}
+}
+
+func takeoverManifestSource(remote *types.PackageRemote) string {
+	if remote == nil {
+		return "auto"
+	}
+	source := strings.TrimSpace(remote.Source.String())
+	if source == "" || source == "unknown" {
+		return "auto"
+	}
+	return source
+}
+
+func appendUniqueStrings(existing []string, values ...string) []string {
+	seen := make(map[string]struct{}, len(existing))
+	for _, value := range existing {
+		seen[value] = struct{}{}
+	}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		existing = append(existing, value)
+		seen[value] = struct{}{}
+	}
+	return existing
+}
+
+func applyTakeoverPackageSelections(s *InitFlowState, requiredLeafIDs, ignoredIDs []string) {
+	requiredSet := make(map[string]struct{}, len(requiredLeafIDs))
+	ignoredSet := make(map[string]struct{}, len(ignoredIDs))
+	for _, id := range requiredLeafIDs {
+		requiredSet[id] = struct{}{}
+	}
+	for _, id := range ignoredIDs {
+		ignoredSet[id] = struct{}{}
+	}
+	for i := range s.PackageClassifications {
+		classification := &s.PackageClassifications[i]
+		if _, ignored := ignoredSet[classification.ID]; ignored {
+			classification.Role = state.RoleIgnored
+			continue
+		}
+		if classification.Leaf {
+			if _, required := requiredSet[classification.ID]; required {
+				classification.Role = state.RoleRequired
+			} else {
+				classification.Role = state.RoleTransitive
+			}
+			continue
+		}
+		classification.Role = state.RoleTransitive
+	}
 }
 
 // CanProceed reports whether enough information has been collected to write
@@ -487,6 +673,7 @@ func BuildResult(s *InitFlowState) (InitFlowResult, error) {
 		mf.Environment.PlatformVersion = s.PlatformVersion
 		mf.Environment.CompatiblePlatforms = append([]string(nil), s.CompatiblePlatforms...)
 		mf.Policy.ManagedRoots = s.ManagedRoots
+		mf.Packages = state.ManifestPackagesFromClassified(classifiedPackagesForManifest(s.PackageClassifications))
 		result.ManifestToWrite = &mf
 		result.WrittenFiles = append(result.WrittenFiles, mfPath)
 	} else {
@@ -513,6 +700,22 @@ func BuildResult(s *InitFlowState) (InitFlowResult, error) {
 	}
 
 	return result, nil
+}
+
+func classifiedPackagesForManifest(classifications []TakeoverPackageClassification) []state.ClassifiedPackage {
+	packages := make([]state.ClassifiedPackage, 0, len(classifications))
+	for _, classification := range classifications {
+		packages = append(packages, state.ClassifiedPackage{
+			ID:       classification.ID,
+			Version:  classification.Version,
+			Source:   classification.Source,
+			Role:     classification.Role,
+			Side:     classification.Side,
+			Optional: classification.Optional,
+			Pinned:   classification.Pinned,
+		})
+	}
+	return packages
 }
 
 // Errors for flow validation and conflict detection.

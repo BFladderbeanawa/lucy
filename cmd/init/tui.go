@@ -221,6 +221,59 @@ func RunInteractiveInit(s *InitFlowState) error {
 		}
 		return fmt.Errorf("managed scope step: %w", err)
 	}
+
+	if len(s.PackageClassifications) > 0 {
+		s.CurrentStep = StepPackageClassification
+		requiredLeafIDs := make([]string, 0, len(s.PackageClassifications))
+		ignoredIDs := make([]string, 0, len(s.PackageClassifications))
+		leafOptions := make([]huh.Option[string], 0, len(s.PackageClassifications))
+		ignoreOptions := make([]huh.Option[string], 0, len(s.PackageClassifications))
+		for _, classification := range s.PackageClassifications {
+			label := packageClassificationLabel(classification)
+			ignoreOptions = append(ignoreOptions, huh.NewOption(label, classification.ID))
+			if classification.Leaf {
+				leafOptions = append(leafOptions, huh.NewOption(label, classification.ID))
+			}
+			if classification.Leaf && classification.Role == state.RoleRequired {
+				requiredLeafIDs = append(requiredLeafIDs, classification.ID)
+			}
+			if classification.Role == state.RoleIgnored {
+				ignoredIDs = append(ignoredIDs, classification.ID)
+			}
+		}
+
+		fields := []huh.Field{
+			huh.NewNote().
+				Title("Package graph classification").
+				Description(buildPackageClassificationDescription(s)),
+		}
+		if len(leafOptions) > 0 {
+			fields = append(fields,
+				huh.NewMultiSelect[string]().
+					Title("Leaf packages to keep as required").
+					Description("Leaf nodes are packages nothing else in the discovered graph depends on. Selected leaves become required; unselected leaves fall back to transitive.").
+					Options(leafOptions...).
+					Value(&requiredLeafIDs),
+			)
+		}
+		fields = append(fields,
+			huh.NewMultiSelect[string]().
+				Title("Packages Lucy should ignore").
+				Description("Ignored packages remain visible in state, but Lucy will leave them outside managed sync.").
+				Options(ignoreOptions...).
+				Value(&ignoredIDs),
+		)
+
+		classificationForm := huh.NewForm(huh.NewGroup(fields...))
+		if err := classificationForm.Run(); err != nil {
+			if isUserAbort(err) {
+				s.Aborted = true
+				return nil
+			}
+			return fmt.Errorf("package classification step: %w", err)
+		}
+		applyTakeoverPackageSelections(s, requiredLeafIDs, ignoredIDs)
+	}
 	s.CurrentStep = StepReview
 
 	summary := buildSummary(s)
@@ -294,6 +347,29 @@ func buildSummary(s *InitFlowState) string {
 			_, _ = fmt.Fprintf(&sb, "Detected pkgs:   %s\n", strings.Join(s.DiscoveredDefaults.DetectedPackages, ", "))
 		}
 	}
+	if len(s.PackageClassifications) > 0 {
+		var required, transitive, ignored []string
+		for _, classification := range s.PackageClassifications {
+			summary := fmt.Sprintf("%s (%s)", classification.ID, packageClassificationKind(classification))
+			switch classification.Role {
+			case state.RoleRequired:
+				required = append(required, summary)
+			case state.RoleIgnored:
+				ignored = append(ignored, summary)
+			default:
+				transitive = append(transitive, summary)
+			}
+		}
+		if len(required) > 0 {
+			_, _ = fmt.Fprintf(&sb, "Required pkgs:   %s\n", strings.Join(required, ", "))
+		}
+		if len(transitive) > 0 {
+			_, _ = fmt.Fprintf(&sb, "Transitive pkgs: %s\n", strings.Join(transitive, ", "))
+		}
+		if len(ignored) > 0 {
+			_, _ = fmt.Fprintf(&sb, "Ignored pkgs:    %s\n", strings.Join(ignored, ", "))
+		}
+	}
 
 	sb.WriteString("\nFiles to create:\n")
 	sb.WriteString("  .lucy/config.toml\n")
@@ -321,4 +397,32 @@ func compatiblePlatformLabel(platform string) string {
 	default:
 		return platform
 	}
+}
+
+func buildPackageClassificationDescription(s *InitFlowState) string {
+	if len(s.PackageClassifications) == 0 {
+		return "No discovered packages need classification."
+	}
+
+	var sb strings.Builder
+	sb.WriteString("Lucy built a package graph from the current server before writing the manifest. Non-leaf nodes are shown as dependencies only; they do not get a separate persistent role.\n\n")
+	for _, classification := range s.PackageClassifications {
+		_, _ = fmt.Fprintf(&sb, "- %s\n", packageClassificationLabel(classification))
+	}
+	return strings.TrimRight(sb.String(), "\n")
+}
+
+func packageClassificationLabel(classification TakeoverPackageClassification) string {
+	label := fmt.Sprintf("[%s] %s@%s", packageClassificationKind(classification), classification.ID, classification.Version)
+	if len(classification.RequiredBy) > 0 {
+		label += fmt.Sprintf(" <- %s", strings.Join(classification.RequiredBy, ", "))
+	}
+	return label
+}
+
+func packageClassificationKind(classification TakeoverPackageClassification) string {
+	if classification.Leaf {
+		return "leaf"
+	}
+	return "dependency"
 }

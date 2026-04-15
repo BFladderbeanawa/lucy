@@ -446,6 +446,35 @@ unmanaged_paths = []
 	}
 }
 
+func TestManifestPackagesFromClassifiedPreservesRoles(t *testing.T) {
+	packages := ManifestPackagesFromClassified([]ClassifiedPackage{
+		{ID: "fabric/fabric-api", Version: "0.119.2+1.21.5", Source: "modrinth", Role: RoleTransitive},
+		{ID: "fabric/lithium", Version: "0.12.7", Source: "modrinth", Role: RoleRequired},
+		{ID: "fabric/cloth-config", Version: "15.0.140", Source: "modrinth", Role: RoleIgnored},
+	})
+
+	if len(packages) != 3 {
+		t.Fatalf("expected 3 manifest packages, got %d", len(packages))
+	}
+	if packages[0].ID != "fabric/cloth-config" || packages[0].Role != RoleIgnored {
+		t.Fatalf("expected deterministic package ordering with ignored package preserved, got %#v", packages)
+	}
+	if packages[1].ID != "fabric/fabric-api" || packages[1].Role != RoleTransitive {
+		t.Fatalf("expected transitive package preserved, got %#v", packages)
+	}
+	if packages[2].ID != "fabric/lithium" || packages[2].Role != RoleRequired {
+		t.Fatalf("expected required package preserved, got %#v", packages)
+	}
+	for _, pkg := range packages {
+		if pkg.Source != "modrinth" {
+			t.Fatalf("expected source modrinth for %s, got %q", pkg.ID, pkg.Source)
+		}
+		if pkg.Side != SideUnknown {
+			t.Fatalf("expected default side unknown for %s, got %q", pkg.ID, pkg.Side)
+		}
+	}
+}
+
 func TestManifestRejectsImpossibleCompatiblePlatformCombination(t *testing.T) {
 	manifest := ManifestDefaults()
 	manifest.Environment.Platform = "fabric"

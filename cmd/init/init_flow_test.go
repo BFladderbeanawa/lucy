@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mclucy/lucy/state"
+	"github.com/mclucy/lucy/syntax"
 	"github.com/mclucy/lucy/types"
 )
 
@@ -274,6 +275,119 @@ func TestBuildSummaryShowsPrimaryAndCompatiblePlatforms(t *testing.T) {
 	if want := "Compatible with: fabric, mcdr, sinytra"; !containsLine(summary, want) {
 		t.Fatalf("expected summary to contain %q, got:\n%s", want, summary)
 	}
+}
+
+func TestBuildTakeoverPackageClassificationsSurfacesNonLeafDependencies(t *testing.T) {
+	packages := []types.Package{
+		testObservedPackage(
+			"fabric/lithium@0.12.7",
+			types.SourceModrinth,
+			[]types.Dependency{{Id: types.PackageId{Platform: types.PlatformFabric, Name: "fabric-api", Version: types.VersionAny}, Mandatory: true}},
+		),
+		testObservedPackage(
+			"fabric/fabric-api@0.119.2+1.21.5",
+			types.SourceModrinth,
+			[]types.Dependency{{Id: types.PackageId{Platform: types.PlatformFabric, Name: "cloth-config", Version: types.VersionAny}, Mandatory: true}},
+		),
+		testObservedPackage("fabric/cloth-config@15.0.140", types.SourceModrinth, nil),
+	}
+
+	classifications := BuildTakeoverPackageClassifications(packages)
+	if len(classifications) != 3 {
+		t.Fatalf("expected 3 classified packages, got %d", len(classifications))
+	}
+
+	byID := make(map[string]TakeoverPackageClassification, len(classifications))
+	for _, classification := range classifications {
+		byID[classification.ID] = classification
+	}
+
+	if got := byID["fabric/lithium"]; !got.Leaf || got.Role != state.RoleRequired {
+		t.Fatalf("expected lithium to be a required leaf, got %#v", got)
+	}
+	if got := byID["fabric/fabric-api"]; got.Leaf || got.Role != state.RoleTransitive {
+		t.Fatalf("expected fabric-api to be a transitive non-leaf, got %#v", got)
+	}
+	if got := byID["fabric/cloth-config"]; got.Leaf || got.Role != state.RoleTransitive {
+		t.Fatalf("expected cloth-config to be a transitive non-leaf, got %#v", got)
+	}
+	if got := byID["fabric/fabric-api"]; !slices.Equal(got.RequiredBy, []string{"fabric/lithium"}) {
+		t.Fatalf("expected fabric-api required-by chain, got %#v", got.RequiredBy)
+	}
+	if got := byID["fabric/cloth-config"]; !slices.Equal(got.RequiredBy, []string{"fabric/fabric-api"}) {
+		t.Fatalf("expected cloth-config required-by chain, got %#v", got.RequiredBy)
+	}
+}
+
+func TestBuildResultIncludesClassifiedPackagesInManifest(t *testing.T) {
+	tmpDir := t.TempDir()
+	s := NewInitFlowState(tmpDir)
+	s.GameVersion = "1.21.4"
+	s.Platform = "fabric"
+	s.PlatformVersion = "0.16.10"
+	s.ManagedRoots = []string{"mods"}
+	s.PackageClassifications = []TakeoverPackageClassification{
+		{ID: "fabric/lithium", Version: "0.12.7", Source: "modrinth", Role: state.RoleRequired, Leaf: true},
+		{ID: "fabric/fabric-api", Version: "0.119.2+1.21.5", Source: "modrinth", Role: state.RoleTransitive},
+		{ID: "fabric/cloth-config", Version: "15.0.140", Source: "modrinth", Role: state.RoleIgnored},
+	}
+
+	result, err := BuildResult(s)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.ManifestToWrite == nil {
+		t.Fatal("expected manifest to be written")
+	}
+	if len(result.ManifestToWrite.Packages) != 3 {
+		t.Fatalf("expected 3 manifest packages, got %d", len(result.ManifestToWrite.Packages))
+	}
+
+	byID := make(map[string]state.ManifestPackage, len(result.ManifestToWrite.Packages))
+	for _, pkg := range result.ManifestToWrite.Packages {
+		byID[pkg.ID] = pkg
+	}
+	if got := byID["fabric/lithium"].Role; got != state.RoleRequired {
+		t.Fatalf("expected lithium role required, got %q", got)
+	}
+	if got := byID["fabric/fabric-api"].Role; got != state.RoleTransitive {
+		t.Fatalf("expected fabric-api role transitive, got %q", got)
+	}
+	if got := byID["fabric/cloth-config"].Role; got != state.RoleIgnored {
+		t.Fatalf("expected cloth-config role ignored, got %q", got)
+	}
+}
+
+func TestBuildPackageClassificationDescriptionDistinguishesNonLeafNodes(t *testing.T) {
+	s := &InitFlowState{
+		PackageClassifications: []TakeoverPackageClassification{
+			{ID: "fabric/lithium", Version: "0.12.7", Role: state.RoleRequired, Leaf: true},
+			{ID: "fabric/fabric-api", Version: "0.119.2+1.21.5", Role: state.RoleTransitive, RequiredBy: []string{"fabric/lithium"}},
+		},
+	}
+
+	description := buildPackageClassificationDescription(s)
+	if !strings.Contains(description, "[leaf]") {
+		t.Fatalf("expected package classification description to mark leaf nodes, got:\n%s", description)
+	}
+	if !strings.Contains(description, "[dependency]") {
+		t.Fatalf("expected package classification description to mark non-leaf dependency nodes, got:\n%s", description)
+	}
+}
+
+func testObservedPackage(id string, source types.Source, deps []types.Dependency) types.Package {
+	pkgID, err := syntax.Parse(id)
+	if err != nil {
+		panic(err)
+	}
+	pkg := types.Package{Id: pkgID}
+	if source != types.SourceUnknown {
+		pkg.Remote = &types.PackageRemote{Source: source}
+	}
+	if deps != nil {
+		pkg.Dependencies = &types.PackageDependencies{Value: deps, Authentic: true}
+	}
+	return pkg
 }
 
 func containsLine(text, want string) bool {

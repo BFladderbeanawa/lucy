@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/mclucy/lucy/types"
@@ -102,6 +103,16 @@ const (
 	RoleTransitive ManifestRole = "transitive"
 	RoleIgnored    ManifestRole = "ignored"
 )
+
+type ClassifiedPackage struct {
+	ID       string
+	Version  string
+	Source   string
+	Role     ManifestRole
+	Side     ManifestSide
+	Optional bool
+	Pinned   bool
+}
 
 type BundleType string
 
@@ -345,6 +356,45 @@ func validateManifestBundle(bundle ManifestBundle) error {
 	default:
 		return fmt.Errorf("invalid type %q", bundle.Type)
 	}
+}
+
+func ManifestPackagesFromClassified(classified []ClassifiedPackage) []ManifestPackage {
+	packages := make([]ManifestPackage, 0, len(classified))
+	for _, pkg := range classified {
+		id := strings.TrimSpace(pkg.ID)
+		if id == "" {
+			continue
+		}
+		version := strings.TrimSpace(pkg.Version)
+		if version == "" {
+			version = types.VersionCompatible.String()
+		}
+		source := strings.TrimSpace(pkg.Source)
+		if types.ParseSource(source) == types.SourceUnknown {
+			source = "auto"
+		}
+		role := pkg.Role
+		if role == "" {
+			role = RoleTransitive
+		}
+		side := pkg.Side
+		if side == "" {
+			side = SideUnknown
+		}
+		packages = append(packages, ManifestPackage{
+			ID:       id,
+			Version:  version,
+			Source:   source,
+			Role:     role,
+			Side:     side,
+			Optional: pkg.Optional,
+			Pinned:   pkg.Pinned,
+		})
+	}
+	sort.Slice(packages, func(i, j int) bool {
+		return packages[i].ID < packages[j].ID
+	})
+	return packages
 }
 
 func (m Manifest) Marshal() ([]byte, error) {
