@@ -53,6 +53,9 @@ func EnrichTopologyFromPackages(
 	}
 
 	// Topology exists (resolved or not) — enrich with package evidence.
+	// This is additive annotation: bridge/adaptor evidence like Connector augments
+	// the existing host runtime topology without replacing the current primary
+	// runtime identity (for example, NeoForge remains the primary node).
 	for _, nodeID := range evidence {
 		entry, ok := FindEntry(nodeID)
 		if !ok {
