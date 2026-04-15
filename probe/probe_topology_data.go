@@ -177,12 +177,7 @@ var defaultRegistryEntries = []RegistryEntry{
 		RiskLevel:        types.RiskHigh,
 		PolicyEdges: []RegistryEdge{
 			{
-				TargetNodeID: RuntimeNodeForge,
-				Kind:         types.EdgeBridges,
-				Risk:         types.RiskHigh,
-			},
-			{
-				TargetNodeID: RuntimeNodeNeoforge,
+				TargetNodeID: RuntimeNodeFabric,
 				Kind:         types.EdgeBridges,
 				Risk:         types.RiskHigh,
 			},
