@@ -31,7 +31,9 @@ writes an exact lockfile for the resolved managed state.
 No files are written until you confirm at the final review step. That confirmation
 is mandatory before Lucy persists intent. Existing Lucy state is preserved by
 default, and takeover-style init will show you what is already on disk as an
-advisory hint before you decide what Lucy should manage.
+advisory hint before you decide what Lucy should manage. Lucy absorbs the
+existing server into a managed boundary instead of claiming total ownership of
+the directory.
 
 Version hints are best-effort: omit a version to use "compatible" (newest
 version that appears to fit the current environment), use @latest to request
