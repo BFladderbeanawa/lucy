@@ -6,12 +6,11 @@ import (
 )
 
 type RegistryEntry struct {
-	NodeID           types.RuntimeNodeID
-	Role             types.RuntimeRole
-	IdentityPlatform types.Platform
-	Capabilities     []types.RuntimeCapability
-	RiskLevel        types.RuntimeRiskLevel
-	PolicyEdges      []RegistryEdge
+	NodeID       types.RuntimeNodeID
+	Role         types.RuntimeRole
+	Capabilities []types.RuntimeCapability
+	RiskLevel    types.RuntimeRiskLevel
+	PolicyEdges  []RegistryEdge
 }
 
 type RegistryEdge struct {
@@ -27,6 +26,14 @@ type RuntimeRegistry struct {
 
 var DefaultRegistry = NewRuntimeRegistry(defaultRegistryEntries)
 
+var nodeIDToPlatform = map[types.RuntimeNodeID]types.Platform{
+	RuntimeNodeMinecraft: types.PlatformMinecraft,
+	RuntimeNodeFabric:    types.PlatformFabric,
+	RuntimeNodeForge:     types.PlatformForge,
+	RuntimeNodeNeoforge:  types.PlatformNeoforge,
+	RuntimeNodeMCDR:      types.PlatformMCDR,
+}
+
 func NewRuntimeRegistry(entries []RegistryEntry) RuntimeRegistry {
 	registry := RuntimeRegistry{
 		byID:       make(map[types.RuntimeNodeID]RegistryEntry, len(entries)),
@@ -35,18 +42,17 @@ func NewRuntimeRegistry(entries []RegistryEntry) RuntimeRegistry {
 
 	for _, entry := range entries {
 		stored := RegistryEntry{
-			NodeID:           entry.NodeID,
-			Role:             entry.Role,
-			IdentityPlatform: entry.IdentityPlatform,
-			Capabilities:     append([]types.RuntimeCapability(nil), entry.Capabilities...),
-			RiskLevel:        entry.RiskLevel,
-			PolicyEdges:      append([]RegistryEdge(nil), entry.PolicyEdges...),
+			NodeID:       entry.NodeID,
+			Role:         entry.Role,
+			Capabilities: append([]types.RuntimeCapability(nil), entry.Capabilities...),
+			RiskLevel:    entry.RiskLevel,
+			PolicyEdges:  append([]RegistryEdge(nil), entry.PolicyEdges...),
 		}
 
 		registry.byID[stored.NodeID] = stored
-		if stored.IdentityPlatform != types.PlatformAny {
-			if _, exists := registry.byPlatform[stored.IdentityPlatform]; !exists {
-				registry.byPlatform[stored.IdentityPlatform] = stored
+		if platform, ok := nodeIDToPlatform[stored.NodeID]; ok {
+			if _, exists := registry.byPlatform[platform]; !exists {
+				registry.byPlatform[platform] = stored
 			}
 		}
 	}
@@ -88,11 +94,10 @@ func BuildTopologyFromEntry(entry RegistryEntry) *types.RuntimeTopology {
 	}
 
 	nodes := []types.RuntimeNode{{
-		ID:               entry.NodeID,
-		Role:             entry.Role,
-		IdentityPlatform: entry.IdentityPlatform,
-		Capabilities:     append([]types.RuntimeCapability(nil), entry.Capabilities...),
-		RiskLevel:        entry.RiskLevel,
+		ID:           entry.NodeID,
+		Role:         entry.Role,
+		Capabilities: append([]types.RuntimeCapability(nil), entry.Capabilities...),
+		RiskLevel:    entry.RiskLevel,
 	}}
 
 	edges := make([]types.RuntimeEdge, 0, len(entry.PolicyEdges))
@@ -116,11 +121,10 @@ func BuildTopologyFromEntry(entry RegistryEntry) *types.RuntimeTopology {
 		}
 
 		nodes = append(nodes, types.RuntimeNode{
-			ID:               target.NodeID,
-			Role:             target.Role,
-			IdentityPlatform: target.IdentityPlatform,
-			Capabilities:     append([]types.RuntimeCapability(nil), target.Capabilities...),
-			RiskLevel:        target.RiskLevel,
+			ID:           target.NodeID,
+			Role:         target.Role,
+			Capabilities: append([]types.RuntimeCapability(nil), target.Capabilities...),
+			RiskLevel:    target.RiskLevel,
 		})
 		seenNode[policyEdge.TargetNodeID] = struct{}{}
 	}
@@ -139,11 +143,10 @@ func BuildTopologyFromEntry(entry RegistryEntry) *types.RuntimeTopology {
 
 func cloneEntry(entry RegistryEntry) RegistryEntry {
 	return RegistryEntry{
-		NodeID:           entry.NodeID,
-		Role:             entry.Role,
-		IdentityPlatform: entry.IdentityPlatform,
-		Capabilities:     append([]types.RuntimeCapability(nil), entry.Capabilities...),
-		RiskLevel:        entry.RiskLevel,
-		PolicyEdges:      append([]RegistryEdge(nil), entry.PolicyEdges...),
+		NodeID:       entry.NodeID,
+		Role:         entry.Role,
+		Capabilities: append([]types.RuntimeCapability(nil), entry.Capabilities...),
+		RiskLevel:    entry.RiskLevel,
+		PolicyEdges:  append([]RegistryEdge(nil), entry.PolicyEdges...),
 	}
 }

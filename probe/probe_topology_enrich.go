@@ -170,9 +170,8 @@ func applyDeclarativeConnections(
 				}
 
 				targetNode := types.RuntimeNode{
-					ID:               entry.NodeID,
-					Role:             entry.Role,
-					IdentityPlatform: entry.IdentityPlatform,
+					ID:   entry.NodeID,
+					Role: entry.Role,
 					Capabilities: append(
 						[]types.RuntimeCapability(nil),
 						entry.Capabilities...,
