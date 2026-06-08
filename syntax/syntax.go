@@ -16,6 +16,7 @@ package syntax
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/mclucy/lucy/types"
@@ -54,6 +55,60 @@ var (
 	ESyntax   = errors.New("invalid syntax")
 	EPlatform = errors.New("invalid platform")
 )
+
+func ParsePackageRequest(s string, bareSource string, optional bool) (
+req types.PackageRequest,
+err error,
+) {
+	req = types.PackageRequest{}
+
+	var ref types.PackageRef
+	ref, err = ParsePackageRef(s)
+	if err != nil {
+		return req, err
+	}
+
+	var version types.BareVersion
+	if len(strings.Split(s, "@")) > 1 {
+		version = types.BareVersion(strings.Split(s, "@")[1])
+	} else {
+		version = "any"
+	}
+
+	var parsedSource types.Source
+	parsedSource = types.ParseSource(bareSource)
+
+	req.Ref = ref
+	req.Version = version
+	req.Source = parsedSource
+	req.Optional = optional
+
+	return req, nil
+}
+
+func ParsePackageRef(s string) (ref types.PackageRef, err error) {
+	ref = types.PackageRef{}
+
+	s = strings.TrimSpace(s)
+	s = strings.ToLower(s)
+	s = strings.Split(s, "@")[0] // strip and ignore version specifiers
+
+	switch len(strings.Split(s, "/")) {
+	case 1:
+		ref.Platform = types.PlatformAny
+		ref.Name = types.PackageName(s)
+	case 2:
+		ref.Platform = types.Platform(strings.Split(s, "/")[0])
+		ref.Name = types.PackageName(strings.Split(s, "/")[1])
+	default:
+		return types.PackageRef{}, fmt.Errorf(
+			"%w: multiple '/' found in specifier %s, maximum 1 is allowed",
+			ESyntax, s,
+		)
+	}
+
+	return ref, nil
+}
 
 // Parse is exported to parse a string into a PackageId struct.
 // Returns the parsed PackageId and an error if parsing fails.
