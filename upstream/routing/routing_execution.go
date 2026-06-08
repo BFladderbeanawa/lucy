@@ -27,7 +27,7 @@ func (e ProviderError) Unwrap() error {
 }
 
 type InfoResult struct {
-	Information types.ProjectInformation
+	Information types.Metadata
 	Fetch       upstream.FetchResult
 }
 
@@ -36,9 +36,9 @@ type InfoResult struct {
 // Default behavior is non-aggregated: each provider contributes one
 // types.SearchResults item in the returned slice.
 func SearchMany(
-	providers []upstream.Provider,
-	query types.ProjectName,
-	options types.SearchOptions,
+providers []upstream.Provider,
+query types.PackageName,
+options types.SearchOptions,
 ) ([]types.SearchResults, []ProviderError) {
 	if len(providers) == 0 {
 		return nil, nil
@@ -92,8 +92,8 @@ func SearchMany(
 // FetchMany executes fetch on all providers in parallel and returns all
 // successful results.
 func FetchMany(
-	providers []upstream.Provider,
-	id types.PackageId,
+providers []upstream.Provider,
+id types.PackageId,
 ) ([]upstream.FetchResult, []ProviderError) {
 	if len(providers) == 0 {
 		return nil, nil
@@ -147,8 +147,8 @@ func FetchMany(
 // FirstFetch executes fetch on all providers in parallel and returns the first
 // successful result.
 func FirstFetch(
-	providers []upstream.Provider,
-	id types.PackageId,
+providers []upstream.Provider,
+id types.PackageId,
 ) (upstream.FetchResult, []ProviderError, error) {
 	// TODO: implement this function in a way that doesn't wait for all providers
 	//  to finish if one has already succeeded
@@ -158,8 +158,8 @@ func FirstFetch(
 // FirstInfo executes info+fetch on all providers in parallel and returns the
 // first successful result.
 func FirstInfo(
-	providers []upstream.Provider,
-	id types.PackageId,
+providers []upstream.Provider,
+id types.PackageId,
 ) (InfoResult, []ProviderError, error) {
 	if len(providers) == 0 {
 		return InfoResult{}, nil, ErrNoProviderSucceeded
@@ -212,8 +212,8 @@ func FirstInfo(
 // returns all successful results. An error is returned only when every provider
 // fails; partial failures are collected in the returned []ProviderError slice.
 func DependenciesMany(
-	providers []upstream.Provider,
-	id types.PackageId,
+providers []upstream.Provider,
+id types.PackageId,
 ) ([]types.PackageDependencies, []ProviderError) {
 	if len(providers) == 0 {
 		return nil, nil

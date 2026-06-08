@@ -21,8 +21,8 @@ import (
 	"github.com/mclucy/lucy/types"
 )
 
-func ToProjectName(s string) types.ProjectName {
-	return types.ProjectName(sanitize(s))
+func ToProjectName(s string) types.PackageName {
+	return types.PackageName(sanitize(s))
 }
 
 // sanitize tolerates some common interchangeability between characters. This
@@ -71,10 +71,10 @@ func Parse(s string) (id types.PackageId, err error) {
 // parseOperatorAt is called first since '@' operator always occur after '/' (equivalent
 // to a lower priority).
 func parseOperatorAt(s string) (
-	pl types.Platform,
-	n types.ProjectName,
-	v types.RawVersion,
-	err error,
+pl types.Platform,
+n types.PackageName,
+v types.BareVersion,
+err error,
 ) {
 	split := strings.Split(s, "@")
 
@@ -86,7 +86,7 @@ func parseOperatorAt(s string) (
 	if len(split) == 1 {
 		v = types.VersionAny
 	} else if len(split) == 2 {
-		v = types.RawVersion(split[1])
+		v = types.BareVersion(split[1])
 		if v == types.VersionNone {
 			return "", "", "", ESyntax
 		}
@@ -98,28 +98,28 @@ func parseOperatorAt(s string) (
 }
 
 func parseOperatorSlash(s string) (
-	pl types.Platform,
-	n types.ProjectName,
-	err error,
+pl types.Platform,
+n types.PackageName,
+err error,
 ) {
 	split := strings.Split(s, "/")
 
 	if len(split) == 1 {
 		pl = types.PlatformAny
-		n = types.ProjectName(split[0])
+		n = types.PackageName(split[0])
 		if types.Platform(n).Valid() {
 			// Remember, all platforms are also valid packages under themselves.
 			// This literal is for users to specify the platform itself.
 			// This means the user specified a platform name directly.
 			pl = types.Platform(n)
-			n = types.ProjectName(pl)
+			n = types.PackageName(pl)
 		}
 	} else if len(split) == 2 {
 		pl = types.Platform(split[0])
 		if !pl.Valid() {
 			return "", "", EPlatform
 		}
-		n = types.ProjectName(split[1])
+		n = types.PackageName(split[1])
 	} else {
 		return "", "", ESyntax
 	}
