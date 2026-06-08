@@ -92,17 +92,16 @@ func buildExecutableInfo() *types.RuntimeInfo {
 			wg := sync.WaitGroup{}
 			for _, jarPath := range jarPaths {
 				wg.Add(1)
-				go func(jarPath string) {
-					candidates := detector.Executable(jarPath)
-					if candidates == nil || candidates.IsEmpty() || candidates.IsAmbiguous() {
-						wg.Done()
-						return
-					}
-					mu.Lock()
-					valid = append(valid, candidates.Single())
-					mu.Unlock()
-					wg.Done()
-				}(jarPath)
+			go func(jarPath string) {
+				defer wg.Done()
+				candidates := detector.Executable(jarPath)
+				if candidates == nil || candidates.IsEmpty() || candidates.IsAmbiguous() {
+					return
+				}
+				mu.Lock()
+				valid = append(valid, candidates.Single())
+				mu.Unlock()
+			}(jarPath)
 			}
 			wg.Wait()
 		} else {
