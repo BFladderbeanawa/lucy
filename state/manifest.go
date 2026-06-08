@@ -354,7 +354,7 @@ func NormalizeManifestVersionIntent(version types.BareVersion) string {
 
 func UpsertManifestRequiredIntent(
 manifest *Manifest,
-id types.PackageId,
+req types.PackageRequest,
 source string,
 ) *Manifest {
 	if manifest == nil {
@@ -379,15 +379,17 @@ source string,
 	if types.ParseSource(resolvedSource) == types.SourceUnknown {
 		resolvedSource = "auto"
 	}
-	intentVersion := NormalizeManifestVersionIntent(id.Version)
+	intentVersion := NormalizeManifestVersionIntent(req.Version)
+	refID := string(req.Ref.Platform) + "/" + string(req.Ref.Name)
 
 	for i := range manifest.Packages {
-		if manifest.Packages[i].ID != id.StringPlatformName() {
+		if manifest.Packages[i].ID != refID {
 			continue
 		}
 		manifest.Packages[i].Version = intentVersion
 		manifest.Packages[i].Source = resolvedSource
 		manifest.Packages[i].Role = RoleRequired
+		manifest.Packages[i].Optional = req.Optional
 		if manifest.Packages[i].Side == "" {
 			manifest.Packages[i].Side = SideUnknown
 		}
@@ -401,11 +403,12 @@ source string,
 
 	manifest.Packages = append(
 		manifest.Packages, ManifestPackage{
-			ID:      id.StringPlatformName(),
-			Version: intentVersion,
-			Source:  resolvedSource,
-			Role:    RoleRequired,
-			Side:    SideUnknown,
+			ID:       refID,
+			Version:  intentVersion,
+			Source:   resolvedSource,
+			Role:     RoleRequired,
+			Side:     SideUnknown,
+			Optional: req.Optional,
 		},
 	)
 	sort.Slice(
@@ -480,15 +483,20 @@ func ManifestPackagesFromClassified(classified []ClassifiedPackage) []ManifestPa
 
 func UpdateManifestRolesForAdd(
 manifest *Manifest,
-requested []types.PackageId,
+requested []types.PackageRequest,
 lock *Lock,
 ) *Manifest {
 	base := cloneManifestOrDefaults(manifest)
 	required := manifestPackagesByRole(base.Packages, RoleRequired)
 	ignored := manifestPackagesByRole(base.Packages, RoleIgnored)
 
-	for _, id := range requested {
-		resolvedID := resolveManifestPackageID(id, &base, lock)
+	for _, req := range requested {
+		// TODO: migrate resolveManifestPackageID to accept PackageRef directly
+		pid := types.PackageId{
+			Platform: req.Ref.Platform,
+			Name:     req.Ref.Name,
+		}
+		resolvedID := resolveManifestPackageID(pid, &base, lock)
 		if resolvedID == "" {
 			continue
 		}
@@ -502,11 +510,12 @@ lock *Lock,
 		}
 		pkg.ID = resolvedID
 		pkg.Role = RoleRequired
-		pkg.Version = requestedManifestVersion(id, pkg.Version)
+		pkg.Version = requestedManifestVersion(req.Version, pkg.Version)
 		pkg.Source = normalizedManifestSource(pkg.Source)
 		if pkg.Side == "" {
 			pkg.Side = SideUnknown
 		}
+		pkg.Optional = req.Optional
 		required[resolvedID] = pkg
 	}
 
@@ -683,14 +692,14 @@ func normalizeProvenanceStep(step string) string {
 	return trimmed
 }
 
-func requestedManifestVersion(id types.PackageId, fallback string) string {
-	if id.Version == types.VersionAny {
+func requestedManifestVersion(version types.BareVersion, fallback string) string {
+	if version == types.VersionAny {
 		if strings.TrimSpace(fallback) != "" {
 			return fallback
 		}
 		return types.VersionCompatible.String()
 	}
-	return id.Version.String()
+	return version.String()
 }
 
 func normalizedManifestSource(source string) string {

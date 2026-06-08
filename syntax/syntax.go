@@ -60,6 +60,7 @@ func ParsePackageRequest(s string, bareSource string, optional bool) (
 req types.PackageRequest,
 err error,
 ) {
+	s = sanitize(s)
 	req = types.PackageRequest{}
 
 	var ref types.PackageRef
@@ -72,7 +73,7 @@ err error,
 	if len(strings.Split(s, "@")) > 1 {
 		version = types.BareVersion(strings.Split(s, "@")[1])
 	} else {
-		version = "any"
+		version = types.VersionAny
 	}
 
 	var parsedSource types.Source
@@ -90,7 +91,7 @@ func ParsePackageRef(s string) (ref types.PackageRef, err error) {
 	ref = types.PackageRef{}
 
 	s = strings.TrimSpace(s)
-	s = strings.ToLower(s)
+	s = sanitize(s)
 	s = strings.Split(s, "@")[0] // strip and ignore version specifiers
 
 	switch len(strings.Split(s, "/")) {
