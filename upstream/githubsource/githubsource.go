@@ -26,7 +26,7 @@ id types.PackageId,
 	panic("TODO: implement github provider Fetch")
 }
 
-func (provider) Information(
+func (provider) Metadata(
 name types.PackageName,
 ) (info upstream.RawProjectInformation, err error) {
 	panic("TODO: implement github provider Information")

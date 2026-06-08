@@ -65,15 +65,16 @@ err error,
 	panic("not implemented")
 }
 
-func Information(
+func Metadata(
 provider Provider,
 name types.PackageName,
 ) (info types.Metadata, err error) {
-	raw, err := provider.Information(name)
+	raw, err := provider.Metadata(name)
 	if err != nil {
 		return types.Metadata{}, err
 	}
 	info = raw.ToProjectInformation()
+	info.From = provider.Source()
 	return info, nil
 }
 

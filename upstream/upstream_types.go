@@ -27,7 +27,7 @@ type Provider interface {
 	remote RawPackageRemote,
 	err error,
 	)
-	Information(name types.PackageName) (
+	Metadata(name types.PackageName) (
 	info RawProjectInformation,
 	err error,
 	)

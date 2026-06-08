@@ -49,7 +49,7 @@ err error,
 	return resolved, nil
 }
 
-func (p provider) Information(name types.PackageName) (
+func (p provider) Metadata(name types.PackageName) (
 info upstream.RawProjectInformation,
 err error,
 ) {

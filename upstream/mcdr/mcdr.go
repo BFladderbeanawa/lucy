@@ -55,7 +55,7 @@ err error,
 	return
 }
 
-func (s provider) Information(name types.PackageName) (
+func (s provider) Metadata(name types.PackageName) (
 info upstream.RawProjectInformation,
 err error,
 ) {

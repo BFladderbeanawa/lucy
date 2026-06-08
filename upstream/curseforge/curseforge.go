@@ -57,7 +57,7 @@ err error,
 }
 
 // Information resolves a project slug and returns project metadata.
-func (provider) Information(name types.PackageName) (
+func (provider) Metadata(name types.PackageName) (
 info upstream.RawProjectInformation,
 err error,
 ) {
