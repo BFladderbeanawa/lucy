@@ -57,14 +57,6 @@ func Dependencies(
 	return &result, nil
 }
 
-func PlatformSupport(src types.Source, name types.PackageName) (
-	supports *types.PlatformSupport,
-	err error,
-) {
-	// TODO: Implement
-	panic("not implemented")
-}
-
 func Metadata(
 	provider Provider,
 	name types.PackageName,
@@ -92,16 +84,4 @@ func Search(
 		return res, fmt.Errorf("no projects found for \"%s\"", query)
 	}
 	return res, nil
-}
-
-// InferVersion replaces inferable version constants with their inferred versions
-// through sources. You should call this function before parsing the version to
-// ComparableVersion.
-//
-// TODO: Remove, infer version should not be exposed. All inference will be done in providers.
-func InferVersion(
-	provider Provider,
-	id types.PackageId,
-) (infer types.PackageId) {
-	return id
 }
