@@ -30,3 +30,9 @@ type PackageRequest struct {
 	Optional bool
 	Source   Source
 }
+
+type RemotePackageName interface {
+	CanonicalName() PackageName
+	RemoteName() string
+	Source() Source
+}

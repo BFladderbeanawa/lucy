@@ -66,7 +66,10 @@ func materializeRuntimeTopology(
 	return nil
 }
 
-func RuntimeIdentityNode(identity types.PackageId) (types.RuntimeNodeID, bool) {
+func RuntimeIdentityNode(identity types.PackageId) (
+	types.RuntimeNodeID,
+	bool,
+) {
 	switch strings.ToLower(strings.TrimSpace(string(identity.Name))) {
 	case "fabric", "fabric-loader":
 		return types.RuntimeNodeFabric, true

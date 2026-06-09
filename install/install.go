@@ -26,7 +26,9 @@ func registerInstaller(platform types.Platform, installer platformInstaller) {
 
 func Install(req types.PackageRequest, options Options) (*Result, error) {
 	// TODO(package-ref-migration): remove PackageId/source extraction once identity installers accept PackageRequest.
-	id := types.PackageId{Platform: req.Ref.Platform, Name: req.Ref.Name, Version: req.Version}
+	id := types.PackageId{
+		Platform: req.Ref.Platform, Name: req.Ref.Name, Version: req.Version,
+	}
 	source := req.Source
 	_ = source
 

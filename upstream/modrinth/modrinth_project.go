@@ -63,7 +63,10 @@ func getProjectByName(slug types.PackageName) (
 	project *projectResponse,
 	err error,
 ) {
-	tryFetch := func(target types.PackageName) (*projectResponse, error) {
+	tryFetch := func(target types.PackageName) (
+		*projectResponse,
+		error,
+	) {
 		res, err := http.Get(projectUrl(string(target)))
 		if err != nil {
 			return nil, fmt.Errorf("modrinth: request failed: %w", err)

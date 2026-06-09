@@ -27,7 +27,10 @@ func listVersions(slug types.PackageName) (
 	versions []*versionResponse,
 	err error,
 ) {
-	tryFetch := func(target types.PackageName) ([]*versionResponse, error) {
+	tryFetch := func(target types.PackageName) (
+		[]*versionResponse,
+		error,
+	) {
 		res, err := http.Get(versionsUrl(target))
 		if err != nil {
 			return nil, err
@@ -143,7 +146,10 @@ func latestVersion(slug types.PackageName) (
 	return v, nil
 }
 
-func latestCompatibleVersion(slug types.PackageName, platform types.Platform) (
+func latestCompatibleVersion(
+	slug types.PackageName,
+	platform types.Platform,
+) (
 	v *versionResponse,
 	err error,
 ) {

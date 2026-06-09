@@ -21,13 +21,15 @@ func (h *hangarDependencies) ToPackageDependencies() types.PackageDependencies {
 		if dep.Name == "" || dep.ExternalURL != nil {
 			continue
 		}
-		result.Value = append(result.Value, types.Dependency{
-			Id: types.PackageId{
-				Platform: types.PlatformNone,
-				Name:     syntax.ToProjectName(dep.Name),
+		result.Value = append(
+			result.Value, types.Dependency{
+				Id: types.PackageId{
+					Platform: types.PlatformNone,
+					Name:     syntax.ToProjectName(dep.Name),
+				},
+				Mandatory: dep.Required,
 			},
-			Mandatory: dep.Required,
-		})
+		)
 	}
 	return result
 }
@@ -53,24 +55,46 @@ func resolveVersion(id types.PackageId) (*hangarVersion, error) {
 	}
 }
 
-func selectLatestVersion(versions []hangarVersion, platform types.Platform) (*hangarVersion, error) {
-	if version := firstVersionMatching(versions, platform, false); version != nil {
+func selectLatestVersion(
+	versions []hangarVersion,
+	platform types.Platform,
+) (*hangarVersion, error) {
+	if version := firstVersionMatching(
+		versions,
+		platform,
+		false,
+	); version != nil {
 		return version, nil
 	}
-	if version := firstVersionMatching(versions, types.PlatformNone, false); version != nil {
+	if version := firstVersionMatching(
+		versions,
+		types.PlatformNone,
+		false,
+	); version != nil {
 		return version, nil
 	}
 	return nil, ErrNoVersion
 }
 
-func selectLatestCompatibleVersion(versions []hangarVersion, platform types.Platform) (*hangarVersion, error) {
-	if version := firstVersionMatching(versions, platform, true); version != nil {
+func selectLatestCompatibleVersion(
+	versions []hangarVersion,
+	platform types.Platform,
+) (*hangarVersion, error) {
+	if version := firstVersionMatching(
+		versions,
+		platform,
+		true,
+	); version != nil {
 		return version, nil
 	}
 	return nil, ErrNoVersion
 }
 
-func firstVersionMatching(versions []hangarVersion, platform types.Platform, requireCompatibility bool) *hangarVersion {
+func firstVersionMatching(
+	versions []hangarVersion,
+	platform types.Platform,
+	requireCompatibility bool,
+) *hangarVersion {
 	for i := range versions {
 		version := &versions[i]
 		if !version.HasDownloadForPlatform(platform) {

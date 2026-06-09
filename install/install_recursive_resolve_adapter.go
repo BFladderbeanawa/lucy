@@ -19,14 +19,22 @@ func (resolver providerCandidateResolver) ResolvePackage(
 	if id.Version == types.VersionCompatible {
 		attempts = append(
 			attempts,
-			types.PackageId{Platform: id.Platform, Name: id.Name, Version: types.VersionLatest},
-			types.PackageId{Platform: id.Platform, Name: id.Name, Version: types.VersionAny},
+			types.PackageId{
+				Platform: id.Platform, Name: id.Name,
+				Version: types.VersionLatest,
+			},
+			types.PackageId{
+				Platform: id.Platform, Name: id.Name, Version: types.VersionAny,
+			},
 		)
 	}
 
 	var lastErrors []routing.ProviderError
 	for _, attempt := range attempts {
-		fetches, providerErrors := routing.FetchMany(resolver.providers, attempt)
+		fetches, providerErrors := routing.FetchMany(
+			resolver.providers,
+			attempt,
+		)
 		if len(fetches) == 0 {
 			lastErrors = providerErrors
 			continue
@@ -50,7 +58,10 @@ func (resolver providerCandidateResolver) ResolveDependencies(
 	pkg types.Package,
 ) ([]types.PackageDependencies, error) {
 	providers := providersForSource(resolver.providers, pkg.Remote)
-	dependencySets, providerErrors := routing.DependenciesMany(providers, pkg.Id)
+	dependencySets, providerErrors := routing.DependenciesMany(
+		providers,
+		pkg.Id,
+	)
 	if len(dependencySets) > 0 {
 		return dependencySets, nil
 	}

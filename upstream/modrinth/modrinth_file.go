@@ -4,7 +4,11 @@ import (
 	"github.com/mclucy/lucy/types"
 )
 
-func GetFile(id types.PackageId) (url string, filename string, err error) {
+func GetFile(id types.PackageId) (
+	url string,
+	filename string,
+	err error,
+) {
 	version, err := getVersion(id)
 	if err != nil {
 		return "", "", err

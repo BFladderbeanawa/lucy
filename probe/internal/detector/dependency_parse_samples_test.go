@@ -322,7 +322,9 @@ func assertConstraintSatisfy(
 	label string,
 ) {
 	t.Helper()
-	id := types.PackageId{Platform: platform, Name: types.PackageName(name)}
+	id := types.PackageId{
+		Platform: platform, Name: types.PackageName(name),
+	}
 	depSpec := types.Dependency{Id: id, Constraint: expr, Mandatory: true}
 	got := depSpec.Satisfy(id, mustParseSemver(t, version))
 	t.Logf(

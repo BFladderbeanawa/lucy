@@ -55,7 +55,10 @@ func searchSortOrder(sort types.SearchSort) string {
 
 // searchUrl builds the search URL for the CurseForge /v1/mods/search endpoint.
 // Docs: https://docs.curseforge.com/rest-api/#search-mods
-func searchUrl(query types.PackageName, options types.SearchOptions) string {
+func searchUrl(
+	query types.PackageName,
+	options types.SearchOptions,
+) string {
 	params := url.Values{}
 	params.Set("gameId", fmt.Sprintf("%d", minecraftGameId))
 	params.Set("classId", fmt.Sprintf("%d", modsClassId))

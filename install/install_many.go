@@ -192,7 +192,8 @@ func requestsToIds(requests []types.PackageRequest) []types.PackageId {
 	ids := make([]types.PackageId, len(requests))
 	for i, req := range requests {
 		ids[i] = types.PackageId{
-			Platform: req.Ref.Platform, Name: req.Ref.Name, Version: req.Version,
+			Platform: req.Ref.Platform, Name: req.Ref.Name,
+			Version: req.Version,
 		}
 	}
 	return ids

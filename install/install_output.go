@@ -24,7 +24,13 @@ func showBatchSummary(installed int, failed int) {
 	if failed == 0 {
 		logger.ShowInfo(fmt.Sprintf("%d packages installed", installed))
 	} else {
-		logger.ShowInfo(fmt.Sprintf("%d installed, %d failed", installed, failed))
+		logger.ShowInfo(
+			fmt.Sprintf(
+				"%d installed, %d failed",
+				installed,
+				failed,
+			),
+		)
 	}
 }
 
@@ -46,7 +52,12 @@ func joinPackageNames(ids []types.PackageId) string {
 }
 
 func showRecursiveResolveStart(roots []types.PackageId) {
-	logger.ShowInfo(fmt.Sprintf("resolving dependencies for %s", joinPackageNames(roots)))
+	logger.ShowInfo(
+		fmt.Sprintf(
+			"resolving dependencies for %s",
+			joinPackageNames(roots),
+		),
+	)
 }
 
 func showRecursiveDownloadStart(count int) {
@@ -70,7 +81,10 @@ func showRecursiveReconcileDiff(diff ReconcileDiff) {
 		verbals = append(verbals, fmt.Sprintf("-%d extra", len(diff.Extra)))
 	}
 	if len(diff.Tightened) > 0 {
-		verbals = append(verbals, fmt.Sprintf("~%d tightened", len(diff.Tightened)))
+		verbals = append(
+			verbals,
+			fmt.Sprintf("~%d tightened", len(diff.Tightened)),
+		)
 	}
 	logger.ShowInfo("reconcile: " + joinStrings(verbals))
 }

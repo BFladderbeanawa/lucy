@@ -26,17 +26,19 @@ func sortIdentityPackages(ids []types.PackageId) []types.PackageId {
 	}
 
 	// Sort by tier
-	slices.SortStableFunc(deduped, func(a, b types.PackageId) int {
-		tierA := getTier(a.IdentityToPlatform())
-		tierB := getTier(b.IdentityToPlatform())
-		if tierA < tierB {
-			return -1
-		}
-		if tierA > tierB {
-			return 1
-		}
-		return 0
-	})
+	slices.SortStableFunc(
+		deduped, func(a, b types.PackageId) int {
+			tierA := getTier(a.IdentityToPlatform())
+			tierB := getTier(b.IdentityToPlatform())
+			if tierA < tierB {
+				return -1
+			}
+			if tierA > tierB {
+				return 1
+			}
+			return 0
+		},
+	)
 
 	return deduped
 }
@@ -61,7 +63,10 @@ func validateIdentityCompatibility(ids []types.PackageId) error {
 		for i, id := range tier1Platforms {
 			names[i] = string(id.Name)
 		}
-		return fmt.Errorf("incompatible identity packages: %v (only one modloader allowed)", names)
+		return fmt.Errorf(
+			"incompatible identity packages: %v (only one modloader allowed)",
+			names,
+		)
 	}
 
 	return nil

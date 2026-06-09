@@ -696,7 +696,10 @@ func normalizeProvenanceStep(step string) string {
 	return trimmed
 }
 
-func requestedManifestVersion(version types.BareVersion, fallback string) string {
+func requestedManifestVersion(
+	version types.BareVersion,
+	fallback string,
+) string {
 	if version == types.VersionAny {
 		if strings.TrimSpace(fallback) != "" {
 			return fallback

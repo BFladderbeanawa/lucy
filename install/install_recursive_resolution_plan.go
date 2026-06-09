@@ -21,9 +21,15 @@ func newRecursiveResolutionPlan(
 	installedConstraints []InstalledConstraint,
 ) recursiveResolutionPlan {
 	return recursiveResolutionPlan{
-		Roots:                append([]types.PackageId(nil), roots...),
-		InstalledConstraints: append([]InstalledConstraint(nil), installedConstraints...),
-		ExcludedCandidates:   map[string]struct{}{},
+		Roots: append(
+			[]types.PackageId(nil),
+			roots...,
+		),
+		InstalledConstraints: append(
+			[]InstalledConstraint(nil),
+			installedConstraints...,
+		),
+		ExcludedCandidates: map[string]struct{}{},
 	}
 }
 
@@ -66,7 +72,10 @@ func excludedCandidateKeys(ids []types.PackageId) map[string]struct{} {
 	return excluded
 }
 
-func appendMissingRoots(existing []types.PackageId, missing []types.PackageId) []types.PackageId {
+func appendMissingRoots(
+	existing []types.PackageId,
+	missing []types.PackageId,
+) []types.PackageId {
 	if len(missing) == 0 {
 		return append([]types.PackageId(nil), existing...)
 	}
@@ -115,7 +124,10 @@ func mergeReconcileConstraints(groups ...[]InstalledConstraint) []InstalledConst
 func tightenedConstraintInputs(inputs []ConstraintInput) []InstalledConstraint {
 	constraints := make([]InstalledConstraint, 0, len(inputs))
 	for _, input := range inputs {
-		constraints = append(constraints, InstalledConstraint{ConstraintInput: input})
+		constraints = append(
+			constraints,
+			InstalledConstraint{ConstraintInput: input},
+		)
 	}
 	return constraints
 }

@@ -566,7 +566,8 @@ func detectArchivePackages(path string) []string {
 			packages = append(
 				packages,
 				types.PackageId{
-					Platform: types.PlatformNone, Name: types.PackageName(id),
+					Platform: types.PlatformNone,
+					Name:     types.PackageName(id),
 				}.StringPlatformName(),
 			)
 		}
@@ -579,7 +580,8 @@ func detectArchivePackages(path string) []string {
 			packages = append(
 				packages,
 				types.PackageId{
-					Platform: types.PlatformNone, Name: types.PackageName(id),
+					Platform: types.PlatformNone,
+					Name:     types.PackageName(id),
 				}.StringPlatformName(),
 			)
 		}

@@ -137,7 +137,10 @@ func reconcileDiff(
 	// upstream APIs may return platform=none/any/unknown for a package that the
 	// local detector identifies as forge/fabric/etc. A candidate keyed as
 	// "none/create" is the same artifact as a verified node keyed "forge/create".
-	verifiedByName := make(map[types.PackageName]struct{}, len(verifiedGraph))
+	verifiedByName := make(
+		map[types.PackageName]struct{},
+		len(verifiedGraph),
+	)
 	for _, vn := range verifiedGraph {
 		verifiedByName[vn.Package.Id.Name] = struct{}{}
 	}

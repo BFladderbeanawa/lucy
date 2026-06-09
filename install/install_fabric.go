@@ -37,7 +37,10 @@ func installFabric(p types.PackageId) error {
 	return installFabricWithOverride(p, false)
 }
 
-func installFabricWithOverride(p types.PackageId, deleteVanilla bool) error {
+func installFabricWithOverride(
+	p types.PackageId,
+	deleteVanilla bool,
+) error {
 	serverInfo := probe.ServerInfo()
 
 	var gameVersion string

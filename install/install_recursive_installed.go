@@ -135,7 +135,10 @@ func FindCompatibleInstalled(
 // ReportCompatibleInstalled logs any locally-installed versions that are
 // compatible with the given package ID. This is an informational-only report;
 // no automatic selection occurs.
-func ReportCompatibleInstalled(tx *RecursiveTransaction, id types.PackageId) {
+func ReportCompatibleInstalled(
+	tx *RecursiveTransaction,
+	id types.PackageId,
+) {
 	matches := FindCompatibleInstalled(tx, id)
 	for _, pkg := range matches {
 		logger.ShowInfo(
