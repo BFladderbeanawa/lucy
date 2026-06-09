@@ -36,20 +36,20 @@ type resolvedVersion struct {
 	UUID        string
 }
 
-func (s searchResponse) ToSearchResults() upstream.SearchResponse {
+func (s searchResponse) ToSearchResults(source types.SourceId) upstream.SearchResponse {
 	results := upstream.SearchResponse{
-		Source:   types.SourceSpiget,
-		Projects: make([]types.BarePackageName, 0, len(s)),
+		Source: source,
+		Items:  make([]upstream.RemotePackageName, 0, len(s)),
 	}
 
 	for _, resource := range s {
 		if resource.Name == "" {
 			continue
 		}
-		results.Projects = append(
-			results.Projects,
-			normalizedProjectName(resource.Name),
-		)
+		results.Items = append(results.Items, upstream.RemotePackageName{
+			RemoteName: normalizedProjectName(resource.Name).String(),
+			Source:     source,
+		})
 	}
 
 	return results

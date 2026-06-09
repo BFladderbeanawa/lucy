@@ -19,10 +19,6 @@ import "github.com/mclucy/lucy/types"
 //   - Source selection/fallback policy is handled by dedicated resolver logic
 //     outside this file.
 type Provider interface {
-	SearchLegacy(query string, options types.SearchOptions) (
-		res RawSearchResults,
-		err error,
-	)
 	Fetch(id types.VersionedPackageRef) (
 		remote RawPackageRemote,
 		err error,
@@ -67,12 +63,6 @@ type (
 	}
 	RawPackageDependencies interface {
 		ToPackageDependencies() types.PackageDependencies
-	}
-
-	// TODO: Consider make SortBy a method on the RawSearchResults interface
-
-	RawSearchResults interface {
-		ToSearchResults() types.SearchResults
 	}
 )
 

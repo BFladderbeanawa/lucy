@@ -34,9 +34,9 @@ type InfoResult struct {
 // SearchMany executes search on all providers in parallel.
 //
 // Default behavior is non-aggregated: each provider contributes one
-// types.SearchResults item in the returned slice.
+// upstream.SearchResponse item in the returned slice.
 func SearchMany(
-	providers []upstream.Provider,
+	providers []SearchProvider,
 	query types.BarePackageName,
 	options types.SearchOptions,
 ) ([]upstream.SearchResponse, []ProviderError) {
@@ -56,18 +56,26 @@ func SearchMany(
 
 	for i, provider := range providers {
 		wg.Add(1)
-		go func(index int, provider upstream.Provider) {
+		go func(index int, provider SearchProvider) {
 			defer wg.Done()
-			res, err := upstream.Search(provider, query, options)
+			res, err := upstream.Search(provider.Searcher, upstream.Query{
+				Keyword:        query.String(),
+				SortBy:         options.SortBy,
+				ExcludeClient:  !options.IncludeClient,
+				FilterPlatform: options.FilterPlatform,
+			})
 			if err != nil {
 				slots[index] = slot{
 					failed: true,
 					err: ProviderError{
-						Source: provider.Id(),
+						Source: provider.Source,
 						Err:    err,
 					},
 				}
 				return
+			}
+			if res.Source == types.SourceUnknown {
+				res.Source = provider.Source
 			}
 			slots[index] = slot{ok: true, res: res}
 		}(i, provider)

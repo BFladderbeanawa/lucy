@@ -27,22 +27,12 @@ import (
 
 type provider struct{}
 
-func (s provider) Id() types.SourceId {
-	return types.SourceModrinth
-}
-
-var Provider provider
-
-// SearchLegacy
-//
-// For Modrinth search API, see:
-// https://docs.modrinth.com/api/operations/searchprojects/
-func (s provider) SearchLegacy(
-	query string,
-	options types.SearchOptions,
-) (res upstream.RawSearchResults, err error) {
+func (s provider) Search(q upstream.Query) (
+	resp upstream.SearchResponse,
+	err error,
+) {
 	var facets []facetItems
-	switch options.FilterPlatform {
+	switch q.FilterPlatform {
 	case types.PlatformForge:
 		facets = append(facets, facetForgeOnly)
 	case types.PlatformFabric:
@@ -57,38 +47,58 @@ func (s provider) SearchLegacy(
 		facets = append(facets, facetAllLoaders)
 	}
 
-	if !options.IncludeClient {
+	if q.ExcludeClient {
 		facets = append(facets, facetServerSupported)
 	}
 
 	internalOptions := searchOptions{
-		index:  modrinthSearchSortingString(options.SortBy),
+		index:  modrinthSearchSortingString(q.SortBy),
 		facets: facets,
 	}
-	searchUrl := searchUrl(query, internalOptions)
+	searchUrl := searchUrl(q.Keyword, internalOptions)
 
 	// Make the call to Modrinth API
 	logger.Debug("searching via modrinth api: " + searchUrl)
 	httpRes, err := http.Get(searchUrl)
 	if err != nil {
-		return nil, fmt.Errorf("modrinth: search request failed: %w", err)
+		return resp, fmt.Errorf("modrinth: search request failed: %w", err)
 	}
 	defer tools.CloseReader(httpRes.Body, logger.Warn)
-
 	if httpRes.StatusCode != http.StatusOK {
-		return nil, ErrInvalidAPIResponse
+		return resp, fmt.Errorf("%w: %s", ErrInvalidAPIResponse, httpRes.Status)
 	}
+
 	data, err := io.ReadAll(httpRes.Body)
 	if err != nil {
-		return nil, err
+		return resp, err
 	}
-	res = &searchResultResponse{}
-	err = json.Unmarshal(data, res)
+	result := &searchResultResponse{}
+	err = json.Unmarshal(data, result)
 	if err != nil {
-		return nil, err
+		return resp, err
 	}
-	return res, nil
+
+	items := make([]upstream.RemotePackageName, len(result.Hits))
+	for i, hit := range result.Hits {
+		items[i] = upstream.RemotePackageName{
+			RemoteName: hit.Slug,
+			Source:     s.Id(),
+		}
+	}
+	resp = upstream.SearchResponse{
+		Source:   s.Id(),
+		Items:    items,
+		Warnings: nil,
+	}
+
+	return
 }
+
+func (s provider) Id() types.SourceId {
+	return types.SourceModrinth
+}
+
+var Provider provider
 
 func (s provider) Fetch(id types.VersionedPackageRef) (
 	remote upstream.RawPackageRemote,

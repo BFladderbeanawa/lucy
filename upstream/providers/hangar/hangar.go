@@ -15,11 +15,17 @@ func (provider) Id() types.SourceId {
 	return types.SourceHangar
 }
 
-func (provider) SearchLegacy(
-	query string,
-	options types.SearchOptions,
-) (res upstream.RawSearchResults, err error) {
-	return searchProjects(query, options)
+func (p provider) Search(q upstream.Query) (upstream.SearchResponse, error) {
+	options := types.SearchOptions{
+		IncludeClient:  !q.ExcludeClient,
+		SortBy:         q.SortBy,
+		FilterPlatform: q.FilterPlatform,
+	}
+	res, err := searchProjects(q.Keyword, options)
+	if err != nil {
+		return upstream.SearchResponse{}, err
+	}
+	return res.ToSearchResults(p.Id()), nil
 }
 
 func (p provider) Fetch(id types.VersionedPackageRef) (

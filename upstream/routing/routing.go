@@ -46,6 +46,20 @@ var providerBySource = map[types.SourceId]upstream.Provider{
 	types.SourceSpiget:   spiget.Provider,
 }
 
+type SearchProvider struct {
+	Source   types.SourceId
+	Searcher upstream.Searcher
+}
+
+var searcherBySource = map[types.SourceId]upstream.Searcher{
+	types.SourceModrinth:   modrinth.Provider,
+	types.SourceCurseForge: curseforge2.Provider,
+	types.SourceGitHub:     githubsource.Provider,
+	types.SourceMCDR:       mcdr.Provider,
+	types.SourceHangar:     hangar.Provider,
+	types.SourceSpiget:     spiget.Provider,
+}
+
 func listModProviders() []upstream.Provider {
 	providers, _ := providersFromSources(modProviderSources())
 	return providers
@@ -76,6 +90,20 @@ func GetProvider(src types.SourceId) (upstream.Provider, bool, error) {
 	return p, ok, nil
 }
 
+func GetSearcher(src types.SourceId) (SearchProvider, bool, error) {
+	if src == types.SourceCurseForge {
+		if err := curseforge2.AvailabilityError(); err != nil {
+			return SearchProvider{}, false, err
+		}
+	}
+
+	searcher, ok := searcherBySource[src]
+	if !ok {
+		return SearchProvider{}, false, nil
+	}
+	return SearchProvider{Source: src, Searcher: searcher}, true, nil
+}
+
 // ResolveProviders resolves ordered provider candidates for a given operation,
 // platform, and user-specified source.
 func ResolveProviders(
@@ -104,7 +132,7 @@ func ResolveProviders(
 func ResolveSearchProviders(
 	platform types.PlatformId,
 	src types.SourceId,
-) ([]upstream.Provider, error) {
+) ([]SearchProvider, error) {
 	if src == types.SourceUnknown {
 		return nil, ErrUnknownSource
 	}
@@ -113,18 +141,34 @@ func ResolveSearchProviders(
 		if err := validateSearchSourcePlatform(src, platform); err != nil {
 			return nil, err
 		}
-		return resolveExplicitSource(src)
+		return resolveExplicitSearcher(src)
 	}
 
 	if !platform.IsSearchPlatform() {
-		return ResolveProviders(platform, src)
+		sources, err := providerSourcesForPlatform(platform)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", err, platform)
+		}
+		return searchersFromSources(sources)
 	}
 
 	sources := providerSourcesForSearchPlatform(platform)
 	if len(sources) == 0 {
 		return nil, fmt.Errorf("%w: %s", ErrInvalidPlatform, platform)
 	}
-	return providersFromSources(sources)
+	return searchersFromSources(sources)
+}
+
+func resolveExplicitSearcher(src types.SourceId) ([]SearchProvider, error) {
+	provider, ok, err := GetSearcher(src)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedSource, src)
+	}
+
+	return []SearchProvider{provider}, nil
 }
 
 func ResolveProvidersFromTopology(
@@ -188,6 +232,24 @@ func providersFromSources(sources []types.SourceId) (
 	providers := make([]upstream.Provider, 0, len(sources))
 	for _, source := range sources {
 		provider, ok, err := GetProvider(source)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", ErrUnsupportedSource, source)
+		}
+		providers = append(providers, provider)
+	}
+	return providers, nil
+}
+
+func searchersFromSources(sources []types.SourceId) (
+	[]SearchProvider,
+	error,
+) {
+	providers := make([]SearchProvider, 0, len(sources))
+	for _, source := range sources {
+		provider, ok, err := GetSearcher(source)
 		if err != nil {
 			return nil, err
 		}

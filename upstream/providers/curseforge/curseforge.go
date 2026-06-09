@@ -24,18 +24,20 @@ func (provider) Id() types.SourceId {
 }
 
 // Search queries the CurseForge /v1/mods/search endpoint.
-func (provider) SearchLegacy(
-	query string,
-	options types.SearchOptions,
-) (res upstream.RawSearchResults, err error) {
-	u := searchUrl(types.BarePackageName(query), options)
+func (p provider) Search(q upstream.Query) (upstream.SearchResponse, error) {
+	options := types.SearchOptions{
+		IncludeClient:  !q.ExcludeClient,
+		SortBy:         q.SortBy,
+		FilterPlatform: q.FilterPlatform,
+	}
+	u := searchUrl(types.BarePackageName(q.Keyword), options)
 	logger.Debug("searching via curseforge api: " + u)
 
 	resp := &searchResponse{}
 	if err := get(u, resp); err != nil {
-		return nil, err
+		return upstream.SearchResponse{}, err
 	}
-	return resp, nil
+	return resp.ToSearchResults(p.Id()), nil
 }
 
 // Fetch resolves the package version, then fetches the corresponding file.

@@ -193,20 +193,6 @@ func (h hit) Source() types.SourceId {
 	return types.SourceModrinth
 }
 
-func (s *searchResultResponse) ToSearchResults() types.SearchResults {
-	res := types.SearchResults{
-		Source:   types.SourceModrinth,
-		Projects: make([]types.BarePackageName, 0, s.TotalHits),
-	}
-
-	// The hits should already be sorted by whatever index passed in.
-	for _, hit := range s.Hits {
-		res.Projects = append(res.Projects, types.BarePackageName(hit.Slug))
-	}
-
-	return res
-}
-
 // versionResponse
 //
 // Docs

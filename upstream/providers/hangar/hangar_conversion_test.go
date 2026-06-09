@@ -24,24 +24,24 @@ func TestProjectSearchResponseToSearchResults(t *testing.T) {
 		},
 	}
 
-	results := resp.ToSearchResults()
+	results := resp.ToSearchResults(types.SourceHangar)
 
 	if results.Source != types.SourceHangar {
 		t.Fatalf("expected Hangar source, got %v", results.Source)
 	}
-	if len(results.Projects) != 2 {
-		t.Fatalf("expected 2 projects, got %d", len(results.Projects))
+	if len(results.Items) != 2 {
+		t.Fatalf("expected 2 projects, got %d", len(results.Items))
 	}
-	if results.Projects[0] != types.BarePackageName("placeholderapi") {
+	if results.Items[0].RemoteName != "placeholderapi" {
 		t.Fatalf(
 			"expected first project placeholderapi, got %s",
-			results.Projects[0],
+			results.Items[0].RemoteName,
 		)
 	}
-	if results.Projects[1] != types.BarePackageName("pronounsmc") {
+	if results.Items[1].RemoteName != "pronounsmc" {
 		t.Fatalf(
 			"expected second project pronounsmc, got %s",
-			results.Projects[1],
+			results.Items[1].RemoteName,
 		)
 	}
 

@@ -71,17 +71,15 @@ func Metadata(
 }
 
 func Search(
-	provider Provider,
-	query types.BarePackageName,
-	option types.SearchOptions,
-) (res types.SearchResults, err error) {
-	raw, err := provider.SearchLegacy(string(query), option)
+	searcher Searcher,
+	query Query,
+) (res SearchResponse, err error) {
+	res, err = searcher.Search(query)
 	if err != nil {
 		return res, err
 	}
-	res = raw.ToSearchResults()
-	if len(res.Projects) == 0 {
-		return res, fmt.Errorf("no projects found for \"%s\"", query)
+	if len(res.Items) == 0 {
+		return res, fmt.Errorf("no projects found for \"%s\"", query.Keyword)
 	}
 	return res, nil
 }

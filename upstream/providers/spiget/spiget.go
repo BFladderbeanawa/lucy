@@ -17,19 +17,21 @@ func (provider) Id() types.SourceId {
 	return types.SourceSpiget
 }
 
-func (provider) SearchLegacy(
-	query string,
-	options types.SearchOptions,
-) (res upstream.RawSearchResults, err error) {
+func (p provider) Search(q upstream.Query) (upstream.SearchResponse, error) {
+	options := types.SearchOptions{
+		IncludeClient:  !q.ExcludeClient,
+		SortBy:         q.SortBy,
+		FilterPlatform: q.FilterPlatform,
+	}
 	if options.FilterPlatform == types.PlatformBukkit {
 		logger.Debug("spiget: platform filter is not supported upstream; search will run without a platform query parameter")
 	}
 
-	resp, err := searchResources(query, options)
+	resp, err := searchResources(q.Keyword, options)
 	if err != nil {
-		return nil, err
+		return upstream.SearchResponse{}, err
 	}
-	return resp, nil
+	return resp.ToSearchResults(p.Id()), nil
 }
 
 func (p provider) Fetch(id types.VersionedPackageRef) (

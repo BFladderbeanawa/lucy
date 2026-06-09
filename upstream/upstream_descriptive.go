@@ -6,10 +6,6 @@ type Searcher interface {
 	Search(q Query) (resp SearchResponse, err error)
 }
 
-type Informer interface {
-	Info(ref types.PackageRef) types.Metadata
-}
-
 type Query struct {
 	Keyword        string
 	SortBy         types.SearchSort
@@ -25,4 +21,8 @@ type SearchResponse struct {
 	Source   types.SourceId
 	Items    []RemotePackageName
 	Warnings []error
+}
+
+type Informer interface {
+	Info(ref types.PackageRef) types.Metadata
 }

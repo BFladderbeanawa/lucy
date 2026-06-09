@@ -194,8 +194,8 @@ func appendToSearchOutput(
 	res upstream.SearchResponse,
 ) {
 	var results []string
-	for _, r := range res.Projects {
-		results = append(results, r.String())
+	for _, r := range res.Items {
+		results = append(results, r.RemoteName)
 	}
 
 	if len(out.Fields) != 0 {
@@ -214,7 +214,7 @@ func appendToSearchOutput(
 		},
 	)
 
-	if res.Source == types.SourceModrinth && len(res.Projects) == 100 {
+	if res.Source == types.SourceModrinth && len(res.Items) == 100 {
 		out.Fields = append(
 			out.Fields,
 			&tui.FieldAnnotation{
@@ -227,7 +227,7 @@ func appendToSearchOutput(
 		out.Fields,
 		&tui.FieldShortText{
 			Title: "#  ",
-			Text:  strconv.Itoa(len(res.Projects)),
+			Text:  strconv.Itoa(len(res.Items)),
 		},
 		&tui.FieldDynamicColumnLabels{
 			Title:  ">>>",

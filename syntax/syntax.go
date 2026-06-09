@@ -83,15 +83,22 @@ func ParsePackageRef(s string) (ref types.PackageRef, err error) {
 
 // Parse is exported to parse a string into a PackageId struct.
 // Returns the parsed PackageId and an error if parsing fails.
-func Parse(s BarePackageRef) (id types.VersionedPackageRef, err error) {
-	s = strings.TrimSpace(strings.ToLower(s))
+func Parse(s string) (id types.VersionedPackageRef, err error) {
+	text := strings.TrimSpace(strings.ToLower(s))
 	id = types.VersionedPackageRef{}
-	id.Platform, id.Name, id.Version, err = parseOperatorAt(s)
+	id.Platform, id.Name, id.Version, err = parseOperatorAt(text)
 	if err != nil {
 		return types.VersionedPackageRef{}, err
 	}
 	id.NormalizeIdentityPackage()
 	return id, nil
+}
+
+func ToProjectName(s string) types.BarePackageName {
+	s = strings.TrimSpace(strings.ToLower(s))
+	s = strings.ReplaceAll(s, "_", "-")
+	s = strings.ReplaceAll(s, " ", "-")
+	return types.BarePackageName(s)
 }
 
 // parseOperatorAt is called first since '@' operator always occur after '/' (equivalent

@@ -13,7 +13,7 @@ func TestSearchResponseToSearchResults(t *testing.T) {
 		{ID: 3031, Name: "ClearChat 3.2"},
 	}
 
-	results := resp.ToSearchResults()
+	results := resp.ToSearchResults(types.SourceSpiget)
 
 	if results.Source != types.SourceSpiget {
 		t.Fatalf(
@@ -22,14 +22,14 @@ func TestSearchResponseToSearchResults(t *testing.T) {
 			results.Source,
 		)
 	}
-	if len(results.Projects) != 2 {
-		t.Fatalf("expected 2 projects, got %d", len(results.Projects))
+	if len(results.Items) != 2 {
+		t.Fatalf("expected 2 projects, got %d", len(results.Items))
 	}
-	if results.Projects[0] != "placeholderapi" {
-		t.Fatalf("expected placeholderapi, got %q", results.Projects[0])
+	if results.Items[0].RemoteName != "placeholderapi" {
+		t.Fatalf("expected placeholderapi, got %q", results.Items[0].RemoteName)
 	}
-	if results.Projects[1] != "clearchat-3-2" {
-		t.Fatalf("expected clearchat-3-2, got %q", results.Projects[1])
+	if results.Items[1].RemoteName != "clearchat-3-2" {
+		t.Fatalf("expected clearchat-3-2, got %q", results.Items[1].RemoteName)
 	}
 }
 

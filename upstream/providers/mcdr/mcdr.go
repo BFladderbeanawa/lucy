@@ -18,33 +18,35 @@ func (s provider) Id() types.SourceId {
 
 var Provider provider
 
-// Just a trivial type to implement the SearchResults interface
+// Just a trivial type to implement the search response conversion.
 type mcdrSearchResult []string
 
-func (m mcdrSearchResult) ToSearchResults() upstream.SearchResponse {
-	var res upstream.SearchResponse
+func (m mcdrSearchResult) ToSearchResults(source types.SourceId) upstream.SearchResponse {
+	res := upstream.SearchResponse{Source: source}
 	for _, id := range m {
-		res.Projects = append(res.Projects, syntax.ToProjectName(id))
+		res.Items = append(res.Items, upstream.RemotePackageName{
+			RemoteName: syntax.ToProjectName(id).String(),
+			Source:     source,
+		})
 	}
-	res.Source = types.SourceMCDR
 	return res
 }
 
 // TODO: handle search options
 
-func (s provider) SearchLegacy(
-	query string,
-	options types.SearchOptions,
-) (res upstream.RawSearchResults, err error) {
-	if options.FilterPlatform != types.PlatformMCDR && options.FilterPlatform != types.PlatformAny {
-		return nil, fmt.Errorf(
+func (s provider) Search(q upstream.Query) (upstream.SearchResponse, error) {
+	if q.FilterPlatform != types.PlatformMCDR && q.FilterPlatform != types.PlatformAny {
+		return upstream.SearchResponse{}, fmt.Errorf(
 			"invalid search platform: expected %s, got %s",
 			types.PlatformMCDR,
-			options.FilterPlatform,
+			q.FilterPlatform,
 		)
 	}
-	res, err = search(query)
-	return
+	res, err := search(q.Keyword)
+	if err != nil {
+		return upstream.SearchResponse{}, err
+	}
+	return res.ToSearchResults(s.Id()), nil
 }
 
 func (s provider) Fetch(id types.VersionedPackageRef) (

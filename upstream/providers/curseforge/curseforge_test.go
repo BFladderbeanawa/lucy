@@ -15,22 +15,22 @@ func TestSearchResponseToSearchResults(t *testing.T) {
 		},
 	}
 
-	results := resp.ToSearchResults()
+	results := resp.ToSearchResults(types.SourceCurseForge)
 
 	if results.Source != types.SourceCurseForge {
 		t.Errorf("expected source CurseForge, got %v", results.Source)
 	}
-	if len(results.Projects) != 3 {
-		t.Fatalf("expected 3 projects, got %d", len(results.Projects))
+	if len(results.Items) != 3 {
+		t.Fatalf("expected 3 projects, got %d", len(results.Items))
 	}
-	if results.Projects[0] != "jei" {
-		t.Errorf("expected 'jei', got '%s'", results.Projects[0])
+	if results.Items[0].RemoteName != "jei" {
+		t.Errorf("expected 'jei', got '%s'", results.Items[0].RemoteName)
 	}
-	if results.Projects[1] != "just-enough-items" {
-		t.Errorf("expected 'just-enough-items', got '%s'", results.Projects[1])
+	if results.Items[1].RemoteName != "just-enough-items" {
+		t.Errorf("expected 'just-enough-items', got '%s'", results.Items[1].RemoteName)
 	}
-	if results.Projects[2] != "rei" {
-		t.Errorf("expected 'rei', got '%s'", results.Projects[2])
+	if results.Items[2].RemoteName != "rei" {
+		t.Errorf("expected 'rei', got '%s'", results.Items[2].RemoteName)
 	}
 }
 
@@ -39,13 +39,13 @@ func TestSearchResponseToSearchResults_Empty(t *testing.T) {
 		Data: []modResponse{},
 	}
 
-	results := resp.ToSearchResults()
+	results := resp.ToSearchResults(types.SourceCurseForge)
 
 	if results.Source != types.SourceCurseForge {
 		t.Errorf("expected source CurseForge, got %v", results.Source)
 	}
-	if len(results.Projects) != 0 {
-		t.Errorf("expected 0 projects, got %d", len(results.Projects))
+	if len(results.Items) != 0 {
+		t.Errorf("expected 0 projects, got %d", len(results.Items))
 	}
 }
 

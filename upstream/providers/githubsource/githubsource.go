@@ -1,6 +1,8 @@
 package githubsource
 
 import (
+	"errors"
+
 	"github.com/mclucy/lucy/types"
 	"github.com/mclucy/lucy/upstream"
 )
@@ -13,11 +15,8 @@ func (provider) Id() types.SourceId {
 	return types.SourceGitHub
 }
 
-func (provider) SearchLegacy(
-	query string,
-	options types.SearchOptions,
-) (res upstream.RawSearchResults, err error) {
-	panic("TODO: implement github provider Search")
+func (provider) Search(upstream.Query) (upstream.SearchResponse, error) {
+	return upstream.SearchResponse{}, errors.New("github provider does not support search")
 }
 
 func (provider) Fetch(

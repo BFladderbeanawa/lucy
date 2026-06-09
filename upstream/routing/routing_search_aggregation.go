@@ -26,11 +26,11 @@ func MaybeAggregateSearchResults(
 // preferred unless aggregation is explicitly required by callers.
 func AggregateSearchResults(results []upstream.SearchResponse) upstream.SearchResponse {
 	aggregated := upstream.SearchResponse{
-		Source:   types.SourceAuto,
-		Projects: make([]types.BarePackageName, 0),
+		Source: types.SourceAuto,
+		Items:  make([]upstream.RemotePackageName, 0),
 	}
 	for _, res := range results {
-		aggregated.Projects = append(aggregated.Projects, res.Projects...)
+		aggregated.Items = append(aggregated.Items, res.Items...)
 	}
 	return aggregated
 }
