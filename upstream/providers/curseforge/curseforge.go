@@ -58,20 +58,19 @@ func (p provider) Fetch(id types.VersionedPackageRef) (
 	return file, nil
 }
 
-// Information resolves a project slug and returns project metadata.
-func (provider) Metadata(name types.BarePackageName) (
-	info upstream.RawProjectInformation,
-	err error,
-) {
-	mod, err := resolveSlug(name)
+// Info resolves a project slug and returns project metadata.
+func (p provider) Info(ref types.PackageRef) (types.Metadata, error) {
+	mod, err := resolveSlug(ref.Name)
 	if err != nil {
-		return nil, err
+		return types.Metadata{}, err
 	}
 	description, err := getModDescription(mod.Id)
 	if err != nil {
-		return nil, err
+		return types.Metadata{}, err
 	}
-	return rawProjectInformation{mod: mod, description: description}, nil
+	info := rawProjectInformation{mod: mod, description: description}.ToProjectInformation()
+	info.From = p.Id()
+	return info, nil
 }
 
 func (p provider) Dependencies(

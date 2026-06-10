@@ -152,10 +152,10 @@ func FetchMany(
 	return results, providerErrors
 }
 
-// GetMedataHedged executes info+fetch on all providers in parallel and returns the
+// GetInfoHedged executes info on all providers in parallel and returns the
 // first successful result.
-func GetMedataHedged(
-	providers []upstream.Provider,
+func GetInfoHedged(
+	providers []InfoProvider,
 	ref types.PackageRef,
 ) (types.Metadata, []ProviderError, error) {
 	if len(providers) == 0 {
@@ -166,11 +166,11 @@ func GetMedataHedged(
 	errChan := make(chan ProviderError, len(providers))
 
 	for _, provider := range providers {
-		go func(provider upstream.Provider) {
-			res, err := upstream.Metadata(provider, ref.Name)
+		go func(provider InfoProvider) {
+			res, err := upstream.Info(provider.Informer, ref)
 			if err != nil {
 				errChan <- ProviderError{
-					Source: provider.Id(),
+					Source: provider.Source,
 					Err:    fmt.Errorf("information failed: %w", err),
 				}
 				return

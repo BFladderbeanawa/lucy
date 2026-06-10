@@ -23,10 +23,6 @@ type Provider interface {
 		remote RawPackageRemote,
 		err error,
 	)
-	Metadata(name types.BarePackageName) (
-		info RawProjectInformation,
-		err error,
-	)
 	Dependencies(id types.VersionedPackageRef) (
 		deps RawPackageDependencies,
 		err error,
@@ -54,9 +50,6 @@ type FetchResult struct {
 type (
 	RawProjectSupport interface {
 		ToProjectSupport() types.PlatformSupport
-	}
-	RawProjectInformation interface {
-		ToProjectInformation() types.Metadata
 	}
 	RawPackageRemote interface {
 		ToPackageRemote() types.PackageRemote

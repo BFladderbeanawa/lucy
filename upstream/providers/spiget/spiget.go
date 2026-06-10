@@ -51,15 +51,14 @@ func (p provider) Fetch(id types.VersionedPackageRef) (
 	return resolved, nil
 }
 
-func (p provider) Metadata(name types.BarePackageName) (
-	info upstream.RawProjectInformation,
-	err error,
-) {
-	resource, err := resolveResourceByProjectName(name)
+func (p provider) Info(ref types.PackageRef) (types.Metadata, error) {
+	resource, err := resolveResourceByProjectName(ref.Name)
 	if err != nil {
-		return nil, err
+		return types.Metadata{}, err
 	}
-	return resource, nil
+	info := resource.ToProjectInformation()
+	info.From = p.Id()
+	return info, nil
 }
 
 func (p provider) Support(name types.BarePackageName) (

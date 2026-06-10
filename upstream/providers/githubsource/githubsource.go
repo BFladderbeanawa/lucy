@@ -25,9 +25,9 @@ func (provider) Fetch(
 	panic("TODO: implement github provider Fetch")
 }
 
-func (provider) Metadata(
-	name types.BarePackageName,
-) (info upstream.RawProjectInformation, err error) {
+func (provider) Info(
+	ref types.PackageRef,
+) (info types.Metadata, err error) {
 	panic("TODO: implement github provider Information")
 }
 

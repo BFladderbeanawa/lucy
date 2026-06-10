@@ -24,5 +24,5 @@ type SearchResponse struct {
 }
 
 type Informer interface {
-	Info(ref types.PackageRef) types.Metadata
+	Info(ref types.PackageRef) (info types.Metadata, err error)
 }

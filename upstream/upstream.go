@@ -10,7 +10,7 @@
 //   - This package defines interfaces and normalized conversion contracts.
 //   - Concrete providers (modrinth, mcdr, curseforge, githubsource) implement
 //     Provider and depend on these contracts, not the other way around.
-//   - Callers pass Provider into Fetch/Search/Information. Core logic depends on
+//   - Callers pass Provider into Fetch/Search/Info. Core logic depends on
 //     abstractions rather than concrete upstream implementations.
 //
 // Boundary:
@@ -57,17 +57,11 @@ func Dependencies(
 	return &result, nil
 }
 
-func Metadata(
-	provider Provider,
-	name types.BarePackageName,
+func Info(
+	informer Informer,
+	ref types.PackageRef,
 ) (info types.Metadata, err error) {
-	raw, err := provider.Metadata(name)
-	if err != nil {
-		return types.Metadata{}, err
-	}
-	info = raw.ToProjectInformation()
-	info.From = provider.Id()
-	return info, nil
+	return informer.Info(ref)
 }
 
 func Search(

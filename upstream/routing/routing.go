@@ -51,7 +51,21 @@ type SearchProvider struct {
 	Searcher upstream.Searcher
 }
 
+type InfoProvider struct {
+	Source   types.SourceId
+	Informer upstream.Informer
+}
+
 var searcherBySource = map[types.SourceId]upstream.Searcher{
+	types.SourceModrinth:   modrinth.Provider,
+	types.SourceCurseForge: curseforge2.Provider,
+	types.SourceGitHub:     githubsource.Provider,
+	types.SourceMCDR:       mcdr.Provider,
+	types.SourceHangar:     hangar.Provider,
+	types.SourceSpiget:     spiget.Provider,
+}
+
+var informerBySource = map[types.SourceId]upstream.Informer{
 	types.SourceModrinth:   modrinth.Provider,
 	types.SourceCurseForge: curseforge2.Provider,
 	types.SourceGitHub:     githubsource.Provider,
@@ -102,6 +116,20 @@ func GetSearcher(src types.SourceId) (SearchProvider, bool, error) {
 		return SearchProvider{}, false, nil
 	}
 	return SearchProvider{Source: src, Searcher: searcher}, true, nil
+}
+
+func GetInformer(src types.SourceId) (InfoProvider, bool, error) {
+	if src == types.SourceCurseForge {
+		if err := curseforge2.AvailabilityError(); err != nil {
+			return InfoProvider{}, false, err
+		}
+	}
+
+	informer, ok := informerBySource[src]
+	if !ok {
+		return InfoProvider{}, false, nil
+	}
+	return InfoProvider{Source: src, Informer: informer}, true, nil
 }
 
 // ResolveProviders resolves ordered provider candidates for a given operation,
@@ -157,6 +185,37 @@ func ResolveSearchProviders(
 		return nil, fmt.Errorf("%w: %s", ErrInvalidPlatform, platform)
 	}
 	return searchersFromSources(sources)
+}
+
+func ResolveInfoProviders(
+	platform types.PlatformId,
+	src types.SourceId,
+) ([]InfoProvider, error) {
+	if src == types.SourceUnknown {
+		return nil, ErrUnknownSource
+	}
+
+	if src != types.SourceAuto {
+		return resolveExplicitInformer(src)
+	}
+
+	sources, err := providerSourcesForPlatform(platform)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", err, platform)
+	}
+	return informersFromSources(sources)
+}
+
+func resolveExplicitInformer(src types.SourceId) ([]InfoProvider, error) {
+	provider, ok, err := GetInformer(src)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedSource, src)
+	}
+
+	return []InfoProvider{provider}, nil
 }
 
 func resolveExplicitSearcher(src types.SourceId) ([]SearchProvider, error) {
@@ -250,6 +309,24 @@ func searchersFromSources(sources []types.SourceId) (
 	providers := make([]SearchProvider, 0, len(sources))
 	for _, source := range sources {
 		provider, ok, err := GetSearcher(source)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", ErrUnsupportedSource, source)
+		}
+		providers = append(providers, provider)
+	}
+	return providers, nil
+}
+
+func informersFromSources(sources []types.SourceId) (
+	[]InfoProvider,
+	error,
+) {
+	providers := make([]InfoProvider, 0, len(sources))
+	for _, source := range sources {
+		provider, ok, err := GetInformer(source)
 		if err != nil {
 			return nil, err
 		}

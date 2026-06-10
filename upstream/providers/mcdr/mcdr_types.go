@@ -104,7 +104,6 @@ type pluginRepo struct {
 	} `json:"license"`
 }
 
-// Internal struct to fulfill the upstream.RawProjectInformation interface
 type rawProjectInformation struct {
 	Info       *pluginInfo
 	Meta       *pluginMeta

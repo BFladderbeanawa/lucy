@@ -57,29 +57,27 @@ func (s provider) Fetch(id types.VersionedPackageRef) (
 	return
 }
 
-func (s provider) Metadata(name types.BarePackageName) (
-	info upstream.RawProjectInformation,
-	err error,
-) {
-	plugin, err := getInfo(name.Pep8String())
+func (s provider) Info(ref types.PackageRef) (types.Metadata, error) {
+	name := ref.Name.Pep8String()
+	plugin, err := getInfo(name)
 	if err != nil {
-		return nil, err
+		return types.Metadata{}, err
 	}
-	meta, err := getMeta(name.Pep8String())
+	meta, err := getMeta(name)
 	if err != nil {
-		return nil, err
+		return types.Metadata{}, err
 	}
-	repo, err := getRepository(name.Pep8String())
+	repo, err := getRepository(name)
 	if err != nil {
-		return nil, err
+		return types.Metadata{}, err
 	}
 
-	info = rawProjectInformation{
+	info := rawProjectInformation{
 		Info:       plugin,
 		Meta:       meta,
 		Repository: repo,
-	}
-
+	}.ToProjectInformation()
+	info.From = s.Id()
 	return info, nil
 }
 

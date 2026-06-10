@@ -114,15 +114,14 @@ func (s provider) Fetch(id types.VersionedPackageRef) (
 	return version, nil
 }
 
-func (s provider) Metadata(name types.BarePackageName) (
-	info upstream.RawProjectInformation,
-	err error,
-) {
-	project, err := getProjectByName(name)
+func (s provider) Info(ref types.PackageRef) (types.Metadata, error) {
+	project, err := getProjectByName(ref.Name)
 	if err != nil {
-		return nil, err
+		return types.Metadata{}, err
 	}
-	return project, nil
+	info := project.ToProjectInformation()
+	info.From = s.Id()
+	return info, nil
 }
 
 // Support from Modrinth API is extremely unreliable. A local check (if any
