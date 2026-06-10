@@ -56,6 +56,11 @@ type InfoProvider struct {
 	Informer upstream.Informer
 }
 
+type ArtifactMapperProvider struct {
+	Source types.SourceId
+	Mapper upstream.ArtifactMapper
+}
+
 var searcherBySource = map[types.SourceId]upstream.Searcher{
 	types.SourceModrinth:   modrinth.Provider,
 	types.SourceCurseForge: curseforge2.Provider,
@@ -72,6 +77,11 @@ var informerBySource = map[types.SourceId]upstream.Informer{
 	types.SourceMCDR:       mcdr.Provider,
 	types.SourceHangar:     hangar.Provider,
 	types.SourceSpiget:     spiget.Provider,
+}
+
+var artifactMapperBySource = map[types.SourceId]upstream.ArtifactMapper{
+	types.SourceModrinth:   modrinth.Provider,
+	types.SourceCurseForge: curseforge2.Provider,
 }
 
 func listModProviders() []upstream.Provider {
@@ -130,6 +140,20 @@ func GetInformer(src types.SourceId) (InfoProvider, bool, error) {
 		return InfoProvider{}, false, nil
 	}
 	return InfoProvider{Source: src, Informer: informer}, true, nil
+}
+
+func GetArtifactMapper(src types.SourceId) (ArtifactMapperProvider, bool, error) {
+	if src == types.SourceCurseForge {
+		if err := curseforge2.AvailabilityError(); err != nil {
+			return ArtifactMapperProvider{}, false, err
+		}
+	}
+
+	mapper, ok := artifactMapperBySource[src]
+	if !ok {
+		return ArtifactMapperProvider{}, false, nil
+	}
+	return ArtifactMapperProvider{Source: src, Mapper: mapper}, true, nil
 }
 
 // ResolveProviders resolves ordered provider candidates for a given operation,
