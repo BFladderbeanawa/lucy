@@ -14,15 +14,14 @@ func TestServerInfoAtTargetsWorkDirWithoutPoisoningGlobalCache(t *testing.T) {
 		t.Fatalf("getwd: %v", err)
 	}
 	fixture := filepath.Join(originalWD, "internal", "detector", "testdata", "fabric", "fabric-server-launch.jar")
-	t.Cleanup(func() {
-		_ = os.Chdir(originalWD)
-		InvalidateServerInfo()
-	})
-
 	cacheDir := t.TempDir()
 	if err := os.Chdir(cacheDir); err != nil {
 		t.Fatalf("chdir cache dir: %v", err)
 	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+		InvalidateServerInfo()
+	})
 	InvalidateServerInfo()
 	baseline := ServerInfo()
 	if baseline.Runtime == nil {
@@ -65,15 +64,14 @@ func TestRefreshServerInfoRebuildsCurrentDirCache(t *testing.T) {
 		t.Fatalf("getwd: %v", err)
 	}
 	fixture := filepath.Join(originalWD, "internal", "detector", "testdata", "fabric", "fabric-server-launch.jar")
-	t.Cleanup(func() {
-		_ = os.Chdir(originalWD)
-		InvalidateServerInfo()
-	})
-
 	workDir := t.TempDir()
 	if err := os.Chdir(workDir); err != nil {
 		t.Fatalf("chdir work dir: %v", err)
 	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+		InvalidateServerInfo()
+	})
 	InvalidateServerInfo()
 	before := ServerInfo()
 	if before.Runtime == nil {
