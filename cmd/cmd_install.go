@@ -60,7 +60,7 @@ func actionInstall(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	options := install.DefaultOptions()
+	options := install.DefaultInstallOptions()
 
 	result, err := install.InstallMany(plan.Requested, options)
 	if err != nil {

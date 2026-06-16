@@ -91,7 +91,7 @@ func actionAdd(cmd *cobra.Command, args []string) error {
 	withOptional, _ := cmd.Flags().GetBool(flagWithOptionalName)
 	source, _ := cmd.Flags().GetString("source")
 
-	options := install.DefaultOptions()
+	options := install.DefaultInstallOptions()
 	options.WithOptional = withOptional
 
 	items := make([]install.InstallItem, 0, len(args))

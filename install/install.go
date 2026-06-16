@@ -24,7 +24,7 @@ func registerInstaller(platform types.PlatformId, installer platformInstaller) {
 	installers[platform] = installer
 }
 
-func Install(item InstallItem, options Options) (*Result, error) {
+func Install(item InstallItem, options InstallOptions) (*Result, error) {
 	id := types.VersionedPackageRef{
 		PackageRef: item.Ref.PackageRef,
 		Version:    item.Version,

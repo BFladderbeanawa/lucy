@@ -12,7 +12,7 @@
 | `install/install.go` | `Install()` single package, `installPlatform()` identity installers |
 | `install/install_many.go` | `InstallMany()` batch install; main orchestration loop |
 | `install/install_request.go` | `PackageRequest` type, `ParsePackageRequest()` from string |
-| `install/install_options.go` | `Options` struct |
+| `install/install_options.go` | `InstallOptions` struct |
 | `install/install_recursive_types.go` | `RecursiveTransaction`, `CandidateNode`, `ReconcileDiff`, `ApplyPlan`, phases |
 | `install/install_recursive_resolve.go` | `BuildCandidateGraph()` — recursive dependency expansion |
 | `install/install_recursive_resolve_adapter.go` | `providerCandidateResolver` — calls routing.FetchMany/DependenciesMany |

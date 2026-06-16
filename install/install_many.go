@@ -10,7 +10,7 @@ import (
 	"github.com/mclucy/lucy/upstream/routing"
 )
 
-func InstallMany(items []InstallItem, options Options) (
+func InstallMany(items []InstallItem, options InstallOptions) (
 	*Result,
 	error,
 ) {

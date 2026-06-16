@@ -1,9 +1,10 @@
 package install
 
-type Options struct {
+// InstallOptions carries whole-install operation configuration.
+type InstallOptions struct {
 	WithOptional bool
 }
 
-func DefaultOptions() Options {
-	return Options{}
+func DefaultInstallOptions() InstallOptions {
+	return InstallOptions{}
 }
