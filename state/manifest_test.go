@@ -335,10 +335,12 @@ func TestUpdateManifestRolesForAddPromotesExplicitRequestsAndPreservesIgnored(t 
 	}
 
 	updated := UpdateManifestRolesForAdd(
-		manifest, []install.PackageRequest{
+		manifest, []install.InstallItem{
 			{
-				Ref: types.PackageRef{
-					Platform: types.PlatformFabric, Name: "new-root",
+				Ref: types.ScopedPackageRef{
+					PackageRef: types.PackageRef{
+						Platform: types.PlatformFabric, Name: "new-root",
+					},
 				},
 				Version: types.VersionLatest,
 			},
@@ -453,10 +455,14 @@ func TestUpdateManifestRolesForRemovePrunesOrphanedTransitivesAndKeepsIgnored(t 
 		manifest,
 		[]types.VersionedPackageRef{
 			{
-				Platform: types.PlatformFabric, Name: "root-a",
+				PackageRef: types.PackageRef{
+					Platform: types.PlatformFabric, Name: "root-a",
+				},
 				Version: types.VersionCompatible,
 			}, {
-				Platform: types.PlatformFabric, Name: "manual-jar",
+				PackageRef: types.PackageRef{
+					Platform: types.PlatformFabric, Name: "manual-jar",
+				},
 				Version: types.VersionCompatible,
 			},
 		},

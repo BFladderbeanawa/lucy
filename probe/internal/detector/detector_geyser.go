@@ -60,9 +60,11 @@ func (d *geyserStandaloneDetector) Detect(
 		GameVersion:     types.VersionUnknown,
 		RuntimeIdentities: []types.VersionedPackageRef{
 			{
-				Platform: types.PlatformAny,
-				Name:     syntax.ToProjectName("geyser"),
-				Version:  version,
+				PackageRef: types.PackageRef{
+					Platform: types.PlatformAny,
+					Name:     syntax.ToProjectName("geyser"),
+				},
+				Version: version,
 			},
 		},
 		Topology: &types.RuntimeTopology{

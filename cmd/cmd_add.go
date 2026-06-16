@@ -94,24 +94,24 @@ func actionAdd(cmd *cobra.Command, args []string) error {
 	options := install.DefaultOptions()
 	options.WithOptional = withOptional
 
-	requests := make([]install.PackageRequest, 0, len(args))
+	items := make([]install.InstallItem, 0, len(args))
 	for _, arg := range args {
-		req, err := install.ParsePackageRequest(arg, source, false)
+		item, err := install.ParseInstallItem(arg, source, false)
 		if err != nil {
 			logger.Fatal(fmt.Errorf("stopping package addition: %w", err))
 		}
-		requests = append(requests, req)
+		items = append(items, item)
 	}
 
 	var result *install.Result
-	if len(requests) > 1 {
-		result, err = install.InstallMany(requests, options)
+	if len(items) > 1 {
+		result, err = install.InstallMany(items, options)
 	} else {
-		req := requests[0]
-		if req.Version == types.VersionAny {
-			req.Version = types.VersionCompatible
+		item := items[0]
+		if item.Version == types.VersionAny {
+			item.Version = types.VersionCompatible
 		}
-		result, err = install.Install(req, options)
+		result, err = install.Install(item, options)
 	}
 	if err != nil {
 		return err
@@ -124,7 +124,7 @@ func actionAdd(cmd *cobra.Command, args []string) error {
 	if err := updateAddState(
 		workspace,
 		stateSvc,
-		requests,
+		items,
 		result,
 	); err != nil {
 		return fmt.Errorf("update state: %w", err)
@@ -163,14 +163,14 @@ func presenceLabel(name string, present bool) string {
 func updateAddState(
 	workDir string,
 	stateSvc *state.ProjectStateService,
-	requests []install.PackageRequest,
+	items []install.InstallItem,
 	result *install.Result,
 ) error {
 	if stateSvc == nil {
 		return nil
 	}
 
-	manifestIntent := buildUpdatedManifest(stateSvc.Manifest(), requests)
+	manifestIntent := buildUpdatedManifest(stateSvc.Manifest(), items)
 	if result == nil || len(result.Installed) == 0 {
 		return state.WriteManifest(workDir, manifestIntent)
 	}
@@ -178,7 +178,7 @@ func updateAddState(
 	lock := buildUpdatedLock(workDir, manifestIntent, stateSvc.Lock(), result)
 	manifest := state.UpdateManifestRolesForAdd(
 		stateSvc.Manifest(),
-		requests,
+		items,
 		lock,
 	)
 	if err := state.WriteManifest(workDir, manifest); err != nil {
@@ -192,13 +192,13 @@ func updateAddState(
 
 func buildUpdatedManifest(
 	existing *state.Manifest,
-	requests []install.PackageRequest,
+	items []install.InstallItem,
 ) *state.Manifest {
 	manifest := existing
-	for _, req := range requests {
+	for _, item := range items {
 		manifest = state.UpsertManifestRequiredIntent(
 			manifest,
-			req,
+			item,
 			types.SourceAuto.String(),
 		)
 	}

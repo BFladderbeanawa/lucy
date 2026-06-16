@@ -29,9 +29,11 @@ func (m *modrinthDependencies) ToPackageDependencies() types.PackageDependencies
 		}
 
 		parentId := types.VersionedPackageRef{
-			Platform: m.platform,
-			Name:     syntax.ToProjectName(m.version.Id),
-			Version:  types.BareVersion(m.version.VersionNumber),
+			PackageRef: types.PackageRef{
+				Platform: m.platform,
+				Name:     syntax.ToProjectName(m.version.Id),
+			},
+			Version: types.BareVersion(m.version.VersionNumber),
 		}
 
 		depId, err := DependencyToPackage(parentId, &dep)

@@ -10,22 +10,22 @@ import (
 	"github.com/mclucy/lucy/upstream/routing"
 )
 
-func InstallMany(requests []PackageRequest, options Options) (
+func InstallMany(items []InstallItem, options Options) (
 	*Result,
 	error,
 ) {
 	const maxReconcileIterations = 3
 
-	if len(requests) == 0 {
+	if len(items) == 0 {
 		return &Result{}, nil
 	}
 
 	batchSource := types.SourceAuto
-	if len(requests) > 0 {
-		batchSource = requests[0].Source
+	if len(items) > 0 {
+		batchSource = items[0].Ref.Scope
 	}
 
-	ids := requestsToIds(requests)
+	ids := itemsToRefs(items)
 	prepared := prepareBatchIDs(ids)
 	identityIds, regularIds := partitionBatchIDs(prepared)
 
@@ -187,13 +187,12 @@ func buildInstallResult(tx *RecursiveTransaction) *Result {
 	return &Result{Installed: installed, Provenance: provenance}
 }
 
-// TODO(package-ref-migration) — boundary conversion; pipeline internals still use PackageId
-func requestsToIds(requests []PackageRequest) []types.VersionedPackageRef {
-	ids := make([]types.VersionedPackageRef, len(requests))
-	for i, req := range requests {
+func itemsToRefs(items []InstallItem) []types.VersionedPackageRef {
+	ids := make([]types.VersionedPackageRef, len(items))
+	for i, item := range items {
 		ids[i] = types.VersionedPackageRef{
-			Platform: req.Ref.Platform, Name: req.Ref.Name,
-			Version: req.Version,
+			PackageRef: item.Ref.PackageRef,
+			Version:    item.Version,
 		}
 	}
 	return ids

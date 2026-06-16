@@ -24,8 +24,10 @@ func (h *hangarDependencies) ToPackageDependencies() types.PackageDependencies {
 		result.Value = append(
 			result.Value, types.Dependency{
 				Id: types.VersionedPackageRef{
-					Platform: types.PlatformNone,
-					Name:     syntax.ToProjectName(dep.Name),
+					PackageRef: types.PackageRef{
+						Platform: types.PlatformNone,
+						Name:     syntax.ToProjectName(dep.Name),
+					},
 				},
 				Mandatory: dep.Required,
 			},

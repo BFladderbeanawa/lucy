@@ -50,9 +50,11 @@ func SnapshotInstalledConstraints(tx *RecursiveTransaction) {
 				appendConstraint(
 					types.Package{
 						Id: types.VersionedPackageRef{
-							Platform: loader,
-							Name:     types.BarePackageName("minecraft"),
-							Version:  si.Runtime.GameVersion,
+							PackageRef: types.PackageRef{
+								Platform: loader,
+								Name:     types.BarePackageName("minecraft"),
+							},
+							Version: si.Runtime.GameVersion,
 						},
 					},
 					fmt.Sprintf(
@@ -66,9 +68,11 @@ func SnapshotInstalledConstraints(tx *RecursiveTransaction) {
 			appendConstraint(
 				types.Package{
 					Id: types.VersionedPackageRef{
-						Platform: loader,
-						Name:     types.BarePackageName("java"),
-						Version:  types.VersionAny,
+						PackageRef: types.PackageRef{
+							Platform: loader,
+							Name:     types.BarePackageName("java"),
+						},
+						Version: types.VersionAny,
 					},
 				}, fmt.Sprintf("runtime:%s/java", loader),
 			)
@@ -78,9 +82,11 @@ func SnapshotInstalledConstraints(tx *RecursiveTransaction) {
 					appendConstraint(
 						types.Package{
 							Id: types.VersionedPackageRef{
-								Platform: loader,
-								Name:     alias,
-								Version:  primary.Version,
+								PackageRef: types.PackageRef{
+									Platform: loader,
+									Name:     alias,
+								},
+								Version: primary.Version,
 							},
 						},
 						fmt.Sprintf(

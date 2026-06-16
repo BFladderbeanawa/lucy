@@ -125,9 +125,11 @@ func (s provider) ResolveVersionSelector(id types.VersionedPackageRef) (
 		return id, err
 	}
 	parsed = types.VersionedPackageRef{
-		Platform: types.PlatformMCDR,
-		Name:     id.Name,
-		Version:  types.BareVersion(rel.Meta.Version),
+		PackageRef: types.PackageRef{
+			Platform: types.PlatformMCDR,
+			Name:     id.Name,
+		},
+		Version: types.BareVersion(rel.Meta.Version),
 	}
 	logger.Debug("parsed from" + id.StringFull() + " to " + parsed.StringFull())
 	return parsed, nil

@@ -456,13 +456,17 @@ func projectPaperJudgment(
 		GameVersion:     gameVersion,
 		RuntimeIdentities: []types.VersionedPackageRef{
 			{
-				Platform: types.PlatformAny,
-				Name:     syntax.ToProjectName(brand),
+				PackageRef: types.PackageRef{
+					Platform: types.PlatformAny,
+					Name:     syntax.ToProjectName(brand),
+				},
 			},
 			{
-				Platform: types.PlatformMinecraft,
-				Name:     syntax.ToProjectName("minecraft"),
-				Version:  gameVersion,
+				PackageRef: types.PackageRef{
+					Platform: types.PlatformMinecraft,
+					Name:     syntax.ToProjectName("minecraft"),
+				},
+				Version: gameVersion,
 			},
 		},
 		TopologySeed: buildBukkitExecutableTopologySeed(primaryNode),

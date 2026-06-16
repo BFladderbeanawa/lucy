@@ -62,9 +62,11 @@ func TestResolvedPackageValidationRequiresIdentityAndVersion(t *testing.T) {
 
 func TestExistingStringablePackageRefBehaviorStillWorks(t *testing.T) {
 	var ref StringablePackageRef = VersionedPackageRef{
-		Platform: PlatformFabric,
-		Name:     "fabric-api",
-		Version:  "0.128.2",
+		PackageRef: PackageRef{
+			Platform: PlatformFabric,
+			Name:     "fabric-api",
+		},
+		Version: "0.128.2",
 	}
 
 	if ref.StringBase() != "fabric/fabric-api" {

@@ -370,7 +370,9 @@ func TestBuildTakeoverPackageClassificationsSurfacesNonLeafDependencies(t *testi
 			[]types.Dependency{
 				{
 					Id: types.VersionedPackageRef{
-						Platform: types.PlatformFabric, Name: "fabric-api",
+						PackageRef: types.PackageRef{
+							Platform: types.PlatformFabric, Name: "fabric-api",
+						},
 						Version: types.VersionAny,
 					}, Mandatory: true,
 				},
@@ -382,7 +384,9 @@ func TestBuildTakeoverPackageClassificationsSurfacesNonLeafDependencies(t *testi
 			[]types.Dependency{
 				{
 					Id: types.VersionedPackageRef{
-						Platform: types.PlatformFabric, Name: "cloth-config",
+						PackageRef: types.PackageRef{
+							Platform: types.PlatformFabric, Name: "cloth-config",
+						},
 						Version: types.VersionAny,
 					}, Mandatory: true,
 				},

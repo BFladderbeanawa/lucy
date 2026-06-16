@@ -26,9 +26,9 @@ func TestBuildUpdatedManifestPreservesFuzzyIntentAndPromotesRequired(t *testing.
 		},
 	}
 
-	requested := []install.PackageRequest{
-		mustParsePackageRequest(t, "fabric/lithium@>=0.12.0 <0.13.0"),
-		mustParsePackageRequest(t, "fabric/fabric-api"),
+	requested := []install.InstallItem{
+		mustParseInstallItem(t, "fabric/lithium@>=0.12.0 <0.13.0"),
+		mustParseInstallItem(t, "fabric/fabric-api"),
 	}
 
 	updated := buildUpdatedManifest(&existing, requested)
@@ -223,13 +223,13 @@ func mustParsePackageID(t *testing.T, raw string) types.VersionedPackageRef {
 	return id
 }
 
-func mustParsePackageRequest(t *testing.T, raw string) install.PackageRequest {
+func mustParseInstallItem(t *testing.T, raw string) install.InstallItem {
 	t.Helper()
-	req, err := install.ParsePackageRequest(raw, "", false)
+	item, err := install.ParseInstallItem(raw, "", false)
 	if err != nil {
-		t.Fatalf("parse request %q: %v", raw, err)
+		t.Fatalf("parse install item %q: %v", raw, err)
 	}
-	return req
+	return item
 }
 
 func lockedResultPackage(
