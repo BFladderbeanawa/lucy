@@ -125,33 +125,33 @@ func (c *curseforgeDependencies) ToPackageDependencies() types.PackageDependenci
 		case 2: // OptionalDependency
 			result.Value = append(
 				result.Value, types.Dependency{
-				Id: types.VersionedPackageRef{
-					PackageRef: types.PackageRef{
-						Name: types.BarePackageName(
-							fmt.Sprintf(
-								"%d",
-								dep.ModId,
+					Id: types.VersionedPackageRef{
+						PackageRef: types.PackageRef{
+							Name: types.BarePackageName(
+								fmt.Sprintf(
+									"%d",
+									dep.ModId,
+								),
 							),
-						),
+						},
 					},
-				},
-				Mandatory: false,
+					Mandatory: false,
 				},
 			)
 		case 3: // RequiredDependency
 			result.Value = append(
 				result.Value, types.Dependency{
-				Id: types.VersionedPackageRef{
-					PackageRef: types.PackageRef{
-						Name: types.BarePackageName(
-							fmt.Sprintf(
-								"%d",
-								dep.ModId,
+					Id: types.VersionedPackageRef{
+						PackageRef: types.PackageRef{
+							Name: types.BarePackageName(
+								fmt.Sprintf(
+									"%d",
+									dep.ModId,
+								),
 							),
-						),
+						},
 					},
-				},
-				Mandatory: true,
+					Mandatory: true,
 				},
 			)
 		default:
