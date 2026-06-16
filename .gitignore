@@ -56,6 +56,7 @@ test_*
 .sisyphus
 AGENTS.md
 CLAUDE.md
+PROMPTS.md
 
 # Worktree
 .worktrees
